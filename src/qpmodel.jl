@@ -1,31 +1,43 @@
+# override some NLPModels functions
+import NLPModels.jac_structure!, NLPModels.hess_structure!, NLPModels.jac_coord!, NLPModels.hess_coord!
+export jac_structure!, hess_structure!, jac_coord!, hess_coord!
+
 mutable struct QPData
-    c0::Float64                 # constant term in objective
-    c::AbstractVector{Float64}  # linear term
-    H::AbstractMatrix{Float64}  # quadratic term
-    opH::AbstractLinearOperator # assumed with preallocation!
-    A::AbstractMatrix{Float64}  # constraint matrix
+    c0  :: Float64                  # constant term in objective
+    c   :: AbstractVector{Float64}  # linear term
+    H   :: AbstractMatrix{Float64}  # quadratic term
+    opH :: AbstractLinearOperator   # assumed with preallocation!
+    A   :: AbstractMatrix{Float64}  # constraint matrix
 end
 
 mutable struct QPCounters
-    neval_hprod::Int  # number of products with H
-    neval_jprod::Int  # number of products with A
-    neval_jtprod::Int # number of products with A'
-    QPCounters() = new(0, 0, 0)
+	neval_obj    :: Int    # number of objective evaluations
+	neval_grad   :: Int    # number of objective gradient evaluations
+	neval_cons   :: Int    # number of constraint vector evaluations
+	neval_jcon   :: Int    # number of individual constraint evaluations
+	neval_jgrad  :: Int    # number of individual constraint gradient evaluations
+	neval_jac    :: Int    # number of constraint Jacobian evaluations
+	neval_jtprod :: Int    # number of transposed Jacobian-vector products
+    neval_hprod  :: Int    # number of Lagrangian/objective Hessian-vector products
+    neval_jprod  :: Int    # number of Jacobian-vector products
+    neval_hess   :: Int    # number of Lagrangian/objective Hessian evaluations
+    neval_jhprod :: Int    # number of individual constraint Hessian-vector products
+    QPCounters() = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
 abstract type AbstractQuadraticModel <: AbstractNLPModel end
 
 mutable struct QuadraticModel <: AbstractQuadraticModel
-  meta::NLPModelMeta
-  counters::QPCounters
-  data::QPData
+  meta     :: NLPModelMeta
+  counters :: QPCounters
+  data     :: QPData
 
-  function QuadraticModel(c::AbstractVector{Float64}, H::AbstractMatrix{Float64},
-                          opH::AbstractLinearOperator,
-                          A::AbstractMatrix{Float64},
-                          lcon::AbstractVector{Float64}, ucon::AbstractVector{Float64},
-                          lvar::AbstractVector{Float64}, uvar::AbstractVector{Float64};
-                          c0::Float64=0.0, kwargs...)
+  function QuadraticModel(c :: AbstractVector{Float64}, H :: AbstractMatrix{Float64},
+                          opH :: AbstractLinearOperator,
+                          A :: AbstractMatrix{Float64},
+                          lcon :: AbstractVector{Float64}, ucon :: AbstractVector{Float64},
+                          lvar :: AbstractVector{Float64}, uvar :: AbstractVector{Float64};
+                          c0 :: Float64=0.0, kwargs...)
     ncon, nvar = size(A)
     nnzh = issparse(H) ? nnz(H) : (nvar * (nvar + 1) / 2)
     nnzj = issparse(A) ? nnz(A) : (nvar * ncon)
@@ -35,12 +47,12 @@ mutable struct QuadraticModel <: AbstractQuadraticModel
                      nnzj=nnzj,
                      nnzh=nnzh,
                      lin=1:ncon, nln=Int[], islp=(ncon == 0); kwargs...),
-        QPCounters(),
-        QPData(c0, c, H, opH, A))
+    QPCounters(),
+    QPData(c0, c, H, opH, A))
   end
 end
 
-function QuadraticModel(model::AbstractNLPModel)
+function QuadraticModel(model :: AbstractNLPModel)
     nvar = model.meta.nvar
     ncon = model.meta.ncon
     z = zeros(nvar)
@@ -54,12 +66,12 @@ end
 
 linobj(qp::AbstractQuadraticModel, args...) = qp.data.c
 
-function objgrad(qp::AbstractQuadraticModel, x::AbstractVector)
+function objgrad(qp :: AbstractQuadraticModel, x :: AbstractVector)
     g = Vector{eltype(x)}(length(x))
     objgrad!(qp, x, g)
 end
 
-function objgrad!(qp::AbstractQuadraticModel, x::AbstractVector, g::AbstractVector)
+function objgrad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
     v = qp.data.opH * x
     @. g = qp.data.c + v
     f = qp.data.c0 + dot(qp.data.c, x) + 0.5 * dot(v, x)
@@ -67,63 +79,95 @@ function objgrad!(qp::AbstractQuadraticModel, x::AbstractVector, g::AbstractVect
     (f, g)
 end
 
-function obj(qp::AbstractQuadraticModel, x::AbstractVector)
+function obj(qp :: AbstractQuadraticModel, x :: AbstractVector)
     v = qp.data.opH * x
     f = qp.data.c0 + dot(qp.data.c, x) + 0.5 * dot(v, x)
     qp.counters.neval_hprod += 1
     f
 end
 
-function grad(qp::AbstractQuadraticModel, x::AbstractVector)
+function grad(qp :: AbstractQuadraticModel, x :: AbstractVector)
     g = Vector{eltype(x)}(undef, qp.meta.nvar)
     grad!(qp, x, g)
 end
 
-function grad!(qp::AbstractQuadraticModel, x::AbstractVector, g::AbstractVector)
+function grad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
     v = qp.data.opH * x
     @. g = qp.data.c + v
     qp.counters.neval_hprod += 1
     g
 end
 
-hess_coord(qp::AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.H)
+hess_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.H)
 
-hess(qp::AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.H
+hess(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.H
 
-hess_op(qp::AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.opH
+hess_op(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.opH
 
-function cons(qp::AbstractQuadraticModel, x::AbstractVector)
+function cons(qp::AbstractQuadraticModel, x :: AbstractVector)
     c = Vector{eltype(x)}(undef, qp.meta.ncon)
     cons!(qp, x, c)
 end
 
-function cons!(qp::AbstractQuadraticModel, x::AbstractVector, c::AbstractVector)
+function cons!(qp :: AbstractQuadraticModel, x :: AbstractVector, c :: AbstractVector)
     mul!(c, qp.data.A, x)
     qp.counters.neval_jprod += 1
     c
 end
 
-jac_coord(qp::AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.A)
+"""
+Return the structure of the constraint's Jacobian in sparse coordinate format in place.
+"""
+function jac_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
+  rows .= qp.data.A.rowval
+  cols .= findnz(qp.data.A)[2]
+end
 
-jac(qp::AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.A
+"""
+Return the structure of the Lagrangian Hessian in sparse coordinate format in place.
+"""
+function hess_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
+  rows .= qp.data.H.rowval
+  cols .= findnz(qp.data.H)[2]
+end
 
-jac_op(qp::AbstractQuadraticModel, ::AbstractVector; kwargs...) = LinearOperator(qp.data.A)
+"""
+Return the structure of the constraint's Jacobian in sparse coordinate format in place.
+"""
+function jac_coord!(qp :: QuadraticModel, x :: AbstractVector, rows :: Vector{<: Integer},
+				    cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
+	vals .= findnz(qp.data.A)[3]
+end
 
-function hprod(qp::AbstractQuadraticModel, ::AbstractVector; kwargs...)
+"""
+Evaluate the Lagrangian Hessian at `x` in sparse coordinate format. Only the lower triangle is returned.
+"""
+function hess_coord!(qp :: QuadraticModel, :: AbstractVector, rows :: AbstractVector{<: Integer},
+					 cols :: AbstractVector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
+	vals .= findnz(qp.data.H)[3]
+end
+
+jac_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.A)
+
+jac(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.A
+
+jac_op(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = LinearOperator(qp.data.A)
+
+function hprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
     @closure v -> begin
         qp.counters.neval_hprod += 1
         qp.data.opH * v
     end
 end
 
-function jprod(qp::AbstractQuadraticModel, ::AbstractVector; kwargs...)
+function jprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
     @closure v -> begin
         qp.counters.neval_jprod += 1
         qp.data.A * v
     end
 end
 
-function jtprod(qp::AbstractQuadraticModel, ::AbstractVector; kwargs...)
+function jtprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
     @closure v -> begin
         qp.counters.neval_jtprod += 1
         qp.data.A' * v
