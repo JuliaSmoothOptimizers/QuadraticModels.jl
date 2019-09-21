@@ -1,6 +1,6 @@
 using Test, QuadraticModels, SparseArrays, NLPModels, NLPModelsIpopt, LinearOperators
 
-@testset "qpsreader" begin
+@testset "QuadraticModelsTests" begin
 	c0        = 0.0
 	c         = [1.5; -2.0]
 	Q         = sparse([1; 2; 2], [1; 1; 2], [8.0; 2.0; 10.0])

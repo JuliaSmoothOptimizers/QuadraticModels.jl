@@ -11,13 +11,13 @@ mutable struct QPData
 end
 
 mutable struct QPCounters
-	neval_obj    :: Int    # number of objective evaluations
-	neval_grad   :: Int    # number of objective gradient evaluations
-	neval_cons   :: Int    # number of constraint vector evaluations
-	neval_jcon   :: Int    # number of individual constraint evaluations
-	neval_jgrad  :: Int    # number of individual constraint gradient evaluations
-	neval_jac    :: Int    # number of constraint Jacobian evaluations
-	neval_jtprod :: Int    # number of transposed Jacobian-vector products
+    neval_obj    :: Int    # number of objective evaluations
+    neval_grad   :: Int    # number of objective gradient evaluations
+    neval_cons   :: Int    # number of constraint vector evaluations
+    neval_jcon   :: Int    # number of individual constraint evaluations
+    neval_jgrad  :: Int    # number of individual constraint gradient evaluations
+    neval_jac    :: Int    # number of constraint Jacobian evaluations
+    neval_jtprod :: Int    # number of transposed Jacobian-vector products
     neval_hprod  :: Int    # number of Lagrangian/objective Hessian-vector products
     neval_jprod  :: Int    # number of Jacobian-vector products
     neval_hess   :: Int    # number of Lagrangian/objective Hessian evaluations
@@ -28,9 +28,9 @@ end
 abstract type AbstractQuadraticModel <: AbstractNLPModel end
 
 mutable struct QuadraticModel <: AbstractQuadraticModel
-  meta     :: NLPModelMeta
-  counters :: QPCounters
-  data     :: QPData
+    meta     :: NLPModelMeta
+    counters :: QPCounters
+    data     :: QPData
 
   function QuadraticModel(c :: AbstractVector{Float64}, H :: AbstractMatrix{Float64},
                           opH :: AbstractLinearOperator,
@@ -119,32 +119,32 @@ end
 Return the structure of the constraint's Jacobian in sparse coordinate format in place.
 """
 function jac_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
-  rows .= qp.data.A.rowval
-  cols .= findnz(qp.data.A)[2]
+    rows .= qp.data.A.rowval
+    cols .= findnz(qp.data.A)[2]
 end
 
 """
 Return the structure of the Lagrangian Hessian in sparse coordinate format in place.
 """
 function hess_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
-  rows .= qp.data.H.rowval
-  cols .= findnz(qp.data.H)[2]
+    rows .= qp.data.H.rowval
+    cols .= findnz(qp.data.H)[2]
 end
 
 """
 Return the structure of the constraint's Jacobian in sparse coordinate format in place.
 """
 function jac_coord!(qp :: QuadraticModel, x :: AbstractVector, rows :: Vector{<: Integer},
-				    cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
-	vals .= findnz(qp.data.A)[3]
+				            cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
+                    vals .= findnz(qp.data.A)[3]
 end
 
 """
 Evaluate the Lagrangian Hessian at `x` in sparse coordinate format. Only the lower triangle is returned.
 """
 function hess_coord!(qp :: QuadraticModel, :: AbstractVector, rows :: AbstractVector{<: Integer},
-					 cols :: AbstractVector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
-	vals .= findnz(qp.data.H)[3]
+					           cols :: AbstractVector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
+                     vals .= findnz(qp.data.H)[3]
 end
 
 jac_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.A)
