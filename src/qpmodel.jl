@@ -135,7 +135,7 @@ end
 Return the structure of the constraint's Jacobian in sparse coordinate format in place.
 """
 function jac_coord!(qp :: QuadraticModel, x :: AbstractVector, rows :: Vector{<: Integer},
-				            cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
+                    cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
                     vals .= findnz(qp.data.A)[3]
 end
 
@@ -143,7 +143,7 @@ end
 Evaluate the Lagrangian Hessian at `x` in sparse coordinate format. Only the lower triangle is returned.
 """
 function hess_coord!(qp :: QuadraticModel, :: AbstractVector, rows :: AbstractVector{<: Integer},
-					           cols :: AbstractVector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
+                     cols :: AbstractVector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
                      vals .= findnz(qp.data.H)[3]
 end
 
