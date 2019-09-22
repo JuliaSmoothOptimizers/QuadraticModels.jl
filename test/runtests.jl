@@ -16,6 +16,6 @@ using Test, QuadraticModels, SparseArrays, NLPModels, NLPModelsIpopt, LinearOper
 
 	@test output.dual_feas                      < 1e-6
 	@test output.primal_feas                    < 1e-6
-	@test maximum(output.objective - objective) < 1e-8
+	@test abs(output.objective - objective)     < 1e-6
 
 end # testset
