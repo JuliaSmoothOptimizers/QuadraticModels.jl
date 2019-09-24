@@ -1,5 +1,4 @@
 # override some NLPModels functions
-import NLPModels.jac_structure!, NLPModels.hess_structure!, NLPModels.jac_coord!, NLPModels.hess_coord!
 export jac_structure!, hess_structure!, jac_coord!, hess_coord!
 
 mutable struct QPData
@@ -10,26 +9,11 @@ mutable struct QPData
     A   :: AbstractMatrix{Float64}  # constraint matrix
 end
 
-mutable struct QPCounters
-    neval_obj    :: Int    # number of objective evaluations
-    neval_grad   :: Int    # number of objective gradient evaluations
-    neval_cons   :: Int    # number of constraint vector evaluations
-    neval_jcon   :: Int    # number of individual constraint evaluations
-    neval_jgrad  :: Int    # number of individual constraint gradient evaluations
-    neval_jac    :: Int    # number of constraint Jacobian evaluations
-    neval_jtprod :: Int    # number of transposed Jacobian-vector products
-    neval_hprod  :: Int    # number of Lagrangian/objective Hessian-vector products
-    neval_jprod  :: Int    # number of Jacobian-vector products
-    neval_hess   :: Int    # number of Lagrangian/objective Hessian evaluations
-    neval_jhprod :: Int    # number of individual constraint Hessian-vector products
-    QPCounters() = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-end
-
 abstract type AbstractQuadraticModel <: AbstractNLPModel end
 
 mutable struct QuadraticModel <: AbstractQuadraticModel
     meta     :: NLPModelMeta
-    counters :: QPCounters
+    counters :: Counters
     data     :: QPData
 
   function QuadraticModel(c :: AbstractVector{Float64}, H :: AbstractMatrix{Float64},
@@ -47,8 +31,8 @@ mutable struct QuadraticModel <: AbstractQuadraticModel
                      nnzj=nnzj,
                      nnzh=nnzh,
                      lin=1:ncon, nln=Int[], islp=(ncon == 0); kwargs...),
-    QPCounters(),
-    QPData(c0, c, H, opH, A))
+        Counters(),
+        QPData(c0, c, H, opH, A))
   end
 end
 
@@ -100,8 +84,6 @@ end
 
 hess_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.H)
 
-hess(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.H
-
 hess_op(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.opH
 
 function cons(qp::AbstractQuadraticModel, x :: AbstractVector)
@@ -118,7 +100,7 @@ end
 """
 Return the structure of the constraints Jacobian in sparse coordinate format in place.
 """
-function jac_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
+function NLPModels.jac_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
     rows .= qp.data.A.rowval
     cols .= findnz(qp.data.A)[2]
 end
@@ -126,7 +108,7 @@ end
 """
 Return the structure of the Lagrangian Hessian in sparse coordinate format in place.
 """
-function hess_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
+function NLPModels.hess_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
     rows .= qp.data.H.rowval
     cols .= findnz(qp.data.H)[2]
 end
@@ -134,15 +116,17 @@ end
 """
 Return the structure of the constraints Jacobian in sparse coordinate format in place.
 """
-function jac_coord!(qp :: QuadraticModel, x :: AbstractVector, rows :: Vector{<: Integer},
+function NLPModels.jac_coord!(qp :: QuadraticModel, x :: AbstractVector, rows :: Vector{<: Integer},
                     cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
     vals .= findnz(qp.data.A)[3]
 end
 
+hess(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.H
+
 """
 Evaluate the Lagrangian Hessian at `x` in sparse coordinate format. Only the lower triangle is returned.
 """
-function hess_coord!(qp :: QuadraticModel, :: AbstractVector, rows :: AbstractVector{<: Integer},
+function NLPModels.hess_coord!(qp :: QuadraticModel, :: AbstractVector, rows :: AbstractVector{<: Integer},
                      cols :: AbstractVector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
     vals .= findnz(qp.data.H)[3]
 end
