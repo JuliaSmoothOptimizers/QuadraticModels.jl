@@ -82,9 +82,49 @@ function grad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractV
     g
 end
 
-hess_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.H)
+hess(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.H
 
 hess_op(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.opH
+
+hess_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.H)
+
+"""
+Return the structure of the Lagrangian Hessian in sparse coordinate format in place.
+"""
+function NLPModels.hess_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
+    rows .= qp.data.H.rowval
+    cols .= findnz(qp.data.H)[2]
+end
+
+"""
+Evaluate the Lagrangian Hessian at `x` in sparse coordinate format. Only the lower triangle is returned.
+"""
+function NLPModels.hess_coord!(qp :: QuadraticModel, :: AbstractVector, rows :: AbstractVector{<: Integer},
+                     cols :: AbstractVector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
+    vals .= findnz(qp.data.H)[3]
+end
+
+jac(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.A
+
+jac_op(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = LinearOperator(qp.data.A)
+
+jac_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.A)
+
+"""
+Return the structure of the constraints Jacobian in sparse coordinate format in place.
+"""
+function NLPModels.jac_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
+    rows .= qp.data.A.rowval
+    cols .= findnz(qp.data.A)[2]
+end
+
+"""
+Return the structure of the constraints Jacobian in sparse coordinate format in place.
+"""
+function NLPModels.jac_coord!(qp :: QuadraticModel, x :: AbstractVector, rows :: Vector{<: Integer},
+                    cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
+    vals .= findnz(qp.data.A)[3]
+end
 
 function cons(qp::AbstractQuadraticModel, x :: AbstractVector)
     c = Vector{eltype(x)}(undef, qp.meta.ncon)
@@ -96,46 +136,6 @@ function cons!(qp :: AbstractQuadraticModel, x :: AbstractVector, c :: AbstractV
     qp.counters.neval_jprod += 1
     c
 end
-
-"""
-Return the structure of the constraints Jacobian in sparse coordinate format in place.
-"""
-function NLPModels.jac_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
-    rows .= qp.data.A.rowval
-    cols .= findnz(qp.data.A)[2]
-end
-
-"""
-Return the structure of the Lagrangian Hessian in sparse coordinate format in place.
-"""
-function NLPModels.hess_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
-    rows .= qp.data.H.rowval
-    cols .= findnz(qp.data.H)[2]
-end
-
-"""
-Return the structure of the constraints Jacobian in sparse coordinate format in place.
-"""
-function NLPModels.jac_coord!(qp :: QuadraticModel, x :: AbstractVector, rows :: Vector{<: Integer},
-                    cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
-    vals .= findnz(qp.data.A)[3]
-end
-
-hess(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.H
-
-"""
-Evaluate the Lagrangian Hessian at `x` in sparse coordinate format. Only the lower triangle is returned.
-"""
-function NLPModels.hess_coord!(qp :: QuadraticModel, :: AbstractVector, rows :: AbstractVector{<: Integer},
-                     cols :: AbstractVector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
-    vals .= findnz(qp.data.H)[3]
-end
-
-jac_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.A)
-
-jac(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.A
-
-jac_op(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = LinearOperator(qp.data.A)
 
 function hprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
     @closure v -> begin
