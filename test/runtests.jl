@@ -1,4 +1,8 @@
-using Test, QuadraticModels, SparseArrays, NLPModels, NLPModelsIpopt, LinearOperators
+# stdlib
+using SparseArrays, Test
+
+# our packages
+using QuadraticModels, NLPModels, NLPModelsIpopt, LinearOperators
 
 @testset "QuadraticModelsTests" begin
 	c0        = 0.0
