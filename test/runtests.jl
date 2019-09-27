@@ -2,7 +2,7 @@
 using SparseArrays, Test
 
 # our packages
-using QuadraticModels, NLPModels, NLPModelsIpopt, LinearOperators
+using LinearOperators, NLPModels, NLPModelsIpopt, QuadraticModels
 
 @testset "QuadraticModelsTests" begin
 	c0        = 0.0
