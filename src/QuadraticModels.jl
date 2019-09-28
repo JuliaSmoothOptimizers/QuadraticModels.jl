@@ -1,15 +1,16 @@
 module QuadraticModels
 
-using FastClosures
-using LinearOperators
-using NLPModels
-using Requires
+# stdlib
+using LinearAlgebra, SparseArrays
 
-using LinearAlgebra
-using SparseArrays
+# our packages
+using LinearOperators, NLPModels
+
+# auxiliary packages
+using FastClosures, Requires
 
 import NLPModels:
-    objgrad, objgrad!, obj,grad, grad!,
+    objgrad, objgrad!, obj, grad, grad!,
     hess_coord, hess, hess_op, hprod,
     cons, cons!,
     jac_coord, jac, jac_op, jprod, jtprod
