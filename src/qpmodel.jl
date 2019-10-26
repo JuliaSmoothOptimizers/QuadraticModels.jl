@@ -1,4 +1,3 @@
-# override some NLPModels functions
 export jac_structure!, hess_structure!, jac_coord!, hess_coord!
 
 mutable struct QPData
@@ -36,46 +35,41 @@ mutable struct QuadraticModel <: AbstractQuadraticModel
   end
 end
 
-function QuadraticModel(model :: AbstractNLPModel)
+function QuadraticModel(model :: AbstractNLPModel, x :: AbstractVector = model.meta.x0, args...; kwargs...)
     nvar = model.meta.nvar
     ncon = model.meta.ncon
-    z = zeros(nvar)
-    c = grad(model, z)
-    H = hess(model, model.meta.x0)
-    A = jac(model, z)
-    QuadraticModel(c, H, opHermitian(H), A,
-                   model.meta.lcon, model.meta.ucon,
-                   model.meta.lvar, model.meta.uvar)
+    g = grad(model, x)
+    H = hess(model, x, args...; kwargs...)
+    c = cons(model, x)
+    A = jac(model, x)
+    QuadraticModel(g, H, opHermitian(H), A,
+                   model.meta.lcon .- c, model.meta.ucon .- c,
+                   model.meta.lvar .- x, model.meta.uvar .- x)
 end
 
 linobj(qp::AbstractQuadraticModel, args...) = qp.data.c
 
-function objgrad(qp :: AbstractQuadraticModel, x :: AbstractVector)
-    g = Vector{eltype(x)}(length(x))
+function NLPModels.objgrad(qp :: AbstractQuadraticModel, x :: AbstractVector)
+    g = Vector{eltype(x)}(undef, length(x))
     objgrad!(qp, x, g)
 end
 
-function objgrad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
+function NLPModels.objgrad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
     v = qp.data.opH * x
     @. g = qp.data.c + v
-    f = qp.data.c0 + dot(qp.data.c, x) + 0.5 * dot(v, x)
+    f = qp.data.c0 + dot(qp.data.c, x) + dot(v, x) / 2
     qp.counters.neval_hprod += 1
     (f, g)
 end
 
-function obj(qp :: AbstractQuadraticModel, x :: AbstractVector)
+function NLPModels.obj(qp :: AbstractQuadraticModel, x :: AbstractVector)
     v = qp.data.opH * x
-    f = qp.data.c0 + dot(qp.data.c, x) + 0.5 * dot(v, x)
+    f = qp.data.c0 + dot(qp.data.c, x) + dot(v, x) / 2
     qp.counters.neval_hprod += 1
     f
 end
 
-function grad(qp :: AbstractQuadraticModel, x :: AbstractVector)
-    g = Vector{eltype(x)}(undef, qp.meta.nvar)
-    grad!(qp, x, g)
-end
-
-function grad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
+function NLPModels.grad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
     v = qp.data.opH * x
     @. g = qp.data.c + v
     qp.counters.neval_hprod += 1
@@ -86,12 +80,10 @@ hess(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.H
 
 hess_op(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.opH
 
-hess_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.H)
-
 """
 Return the structure of the Lagrangian Hessian in sparse coordinate format in place.
 """
-function NLPModels.hess_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
+function NLPModels.hess_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer})
     rows .= qp.data.H.rowval
     cols .= findnz(qp.data.H)[2]
 end
@@ -104,16 +96,16 @@ function NLPModels.hess_coord!(qp :: QuadraticModel, :: AbstractVector, rows :: 
     vals .= findnz(qp.data.H)[3]
 end
 
-jac(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = qp.data.A
+jac(qp :: AbstractQuadraticModel, ::AbstractVector) = qp.data.A
 
-jac_op(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = LinearOperator(qp.data.A)
+jac_op(qp :: AbstractQuadraticModel, ::AbstractVector) = LinearOperator(qp.data.A)
 
-jac_coord(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...) = findnz(qp.data.A)
+jac_coord(qp :: AbstractQuadraticModel, ::AbstractVector) = findnz(qp.data.A)
 
 """
 Return the structure of the constraints Jacobian in sparse coordinate format in place.
 """
-function NLPModels.jac_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer}; kwargs...)
+function NLPModels.jac_structure!(qp :: QuadraticModel, rows :: Vector{<: Integer}, cols :: Vector{<: Integer})
     rows .= qp.data.A.rowval
     cols .= findnz(qp.data.A)[2]
 end
@@ -122,38 +114,30 @@ end
 Return the structure of the constraints Jacobian in sparse coordinate format in place.
 """
 function NLPModels.jac_coord!(qp :: QuadraticModel, x :: AbstractVector, rows :: Vector{<: Integer},
-                              cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat}; kwargs...)
+                              cols :: Vector{<: Integer}, vals :: Vector{<: AbstractFloat})
     vals .= findnz(qp.data.A)[3]
 end
 
-function cons(qp::AbstractQuadraticModel, x :: AbstractVector)
-    c = Vector{eltype(x)}(undef, qp.meta.ncon)
-    cons!(qp, x, c)
-end
-
-function cons!(qp :: AbstractQuadraticModel, x :: AbstractVector, c :: AbstractVector)
+function NLPModels.cons!(qp :: AbstractQuadraticModel, x :: AbstractVector, c :: AbstractVector)
     mul!(c, qp.data.A, x)
     qp.counters.neval_jprod += 1
     c
 end
 
-function hprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
-    @closure v -> begin
-        qp.counters.neval_hprod += 1
-        qp.data.opH * v
-    end
+function NLPModels.hprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v :: AbstractVector, Av :: AbstractVector)
+    qp.counters.neval_hprod += 1
+    Av .= qp.data.opH * v
+    return Av
 end
 
-function jprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
-    @closure v -> begin
-        qp.counters.neval_jprod += 1
-        qp.data.A * v
-    end
+function NLPModels.jprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v :: AbstractVector, Av :: AbstractVector)
+    qp.counters.neval_jprod += 1
+    mul!(Av, qp.data.A, v)
+    return Av
 end
 
-function jtprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
-    @closure v -> begin
-        qp.counters.neval_jtprod += 1
-        qp.data.A' * v
-    end
+function NLPModels.jtprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v :: AbstractVector, Atv :: AbstractVector)
+    qp.counters.neval_jtprod += 1
+    mul!(Atv, qp.data.A', v)
+    return Atv
 end
