@@ -1,5 +1,3 @@
-
-
 function check_quadratic_model(model, quadraticmodel)
     rtol  = 1e-8
     # @assert typeof(quadraticmodel) <: NLPModels.QuadraticModel
