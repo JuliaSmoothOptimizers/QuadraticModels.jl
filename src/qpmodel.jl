@@ -137,23 +137,20 @@ function cons!(qp :: AbstractQuadraticModel, x :: AbstractVector, c :: AbstractV
     c
 end
 
-function hprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
-    @closure v -> begin
-        qp.counters.neval_hprod += 1
-        qp.data.opH * v
-    end
+function NLPModels.hprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v :: AbstractVector, Av :: AbstractVector; kwargs...)
+    qp.counters.neval_hprod += 1
+    Av .= qp.data.opH * v
+    return Av
 end
 
-function jprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
-    @closure v -> begin
-        qp.counters.neval_jprod += 1
-        qp.data.A * v
-    end
+function NLPModels.jprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v :: AbstractVector, Av :: AbstractVector; kwargs...)
+    qp.counters.neval_jprod += 1
+    Av .= qp.data.A * v
+    return Av
 end
 
-function jtprod(qp :: AbstractQuadraticModel, ::AbstractVector; kwargs...)
-    @closure v -> begin
-        qp.counters.neval_jtprod += 1
-        qp.data.A' * v
-    end
+function NLPModels.jtprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v :: AbstractVector, Atv :: AbstractVector; kwargs...)
+    qp.counters.neval_jtprod += 1
+    Atv .= qp.data.A' * v
+    return Atv
 end
