@@ -1,4 +1,3 @@
-# override some NLPModels functions
 export jac_structure!, hess_structure!, jac_coord!, hess_coord!
 
 mutable struct QPData
@@ -51,11 +50,11 @@ end
 linobj(qp::AbstractQuadraticModel, args...) = qp.data.c
 
 function objgrad(qp :: AbstractQuadraticModel, x :: AbstractVector)
-    g = Vector{eltype(x)}(length(x))
+    g = Vector{eltype(x)}(undef, length(x))
     objgrad!(qp, x, g)
 end
 
-function objgrad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
+function NLPModels.objgrad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
     v = qp.data.opH * x
     @. g = qp.data.c + v
     f = qp.data.c0 + dot(qp.data.c, x) + 0.5 * dot(v, x)
@@ -75,7 +74,7 @@ function grad(qp :: AbstractQuadraticModel, x :: AbstractVector)
     grad!(qp, x, g)
 end
 
-function grad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
+function NLPModels.grad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)
     v = qp.data.opH * x
     @. g = qp.data.c + v
     qp.counters.neval_hprod += 1
@@ -131,7 +130,7 @@ function cons(qp::AbstractQuadraticModel, x :: AbstractVector)
     cons!(qp, x, c)
 end
 
-function cons!(qp :: AbstractQuadraticModel, x :: AbstractVector, c :: AbstractVector)
+function NLPModels.cons!(qp :: AbstractQuadraticModel, x :: AbstractVector, c :: AbstractVector)
     mul!(c, qp.data.A, x)
     qp.counters.neval_jprod += 1
     c

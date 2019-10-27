@@ -7,8 +7,13 @@ function check_quadratic_model(model, quadraticmodel)
     x = [-(-1.0)^i for i = 1:quadraticmodel.meta.nvar]
   
     @assert isapprox(obj(model, x), obj(quadraticmodel, x), rtol=rtol)
+
+    f, g = grad(model, x)
+    f_quad, g_quad = grad(quadraticmodel, x)
   
-    @assert isapprox(grad(model, x), grad(quadraticmodel, x), rtol=rtol)
+    @assert isapprox(f, f_quad, rtol=rtol)
+
+    @assert isapprox(g, g_quad, rtol=rtol)
   
     @assert isapprox(cons(model, x), cons(quadraticmodel, x), rtol=rtol)
   
@@ -25,10 +30,6 @@ function check_quadratic_model(model, quadraticmodel)
     @assert typeof(H) <: LinearOperators.AbstractLinearOperator
     @assert size(H) == (model.meta.nvar, model.meta.nvar)
     @assert isapprox(H * v, hprod(quadraticmodel, x, v), rtol=rtol)
-  
-    g = grad(quadraticmodel, x)
-    gp = grad(quadraticmodel, x - g)
-    # the quasi-Newton operator itself is tested in LinearOperators
   
     reset!(quadraticmodel)
   end
