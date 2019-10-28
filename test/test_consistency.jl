@@ -1,15 +1,15 @@
 function check_quadratic_model(model, quadraticmodel)
-    rtol  = 1e-8
-    # @assert typeof(quadraticmodel) <: NLPModels.QuadraticModel
-    @assert quadraticmodel.meta.nvar == model.meta.nvar
+    @assert typeof(quadraticmodel) <: QuadraticModels.AbstractQuadraticModel
+    rtol  = 1e-8 
+    @assert quadraticmodel.meta.nvar == model.meta.nvar 
     @assert quadraticmodel.meta.ncon == model.meta.ncon
   
     x = [-(-1.0)^i for i = 1:quadraticmodel.meta.nvar]
   
     @assert isapprox(obj(model, x), obj(quadraticmodel, x), rtol=rtol)
 
-    f, g = grad(model, x)
-    f_quad, g_quad = grad(quadraticmodel, x)
+    f, g = objgrad(model, x)
+    f_quad, g_quad = objgrad(quadraticmodel, x)
   
     @assert isapprox(f, f_quad, rtol=rtol)
 
