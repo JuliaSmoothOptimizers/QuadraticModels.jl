@@ -144,12 +144,12 @@ end
 
 function NLPModels.jprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v :: AbstractVector, Av :: AbstractVector; kwargs...)
     qp.counters.neval_jprod += 1
-    Av .= qp.data.A * v
+    mul!(Av, qp.data.A, v)
     return Av
 end
 
 function NLPModels.jtprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v :: AbstractVector, Atv :: AbstractVector; kwargs...)
     qp.counters.neval_jtprod += 1
-    Atv .= qp.data.A' * v
+    mul!(Atv, qp.data.A', v)
     return Atv
 end

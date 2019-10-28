@@ -29,17 +29,12 @@ function check_quadratic_model(model, quadraticmodel)
     H = hess_op(quadraticmodel, x)
     @assert typeof(H) <: LinearOperators.AbstractLinearOperator
     @assert size(H) == (model.meta.nvar, model.meta.nvar)
-    @assert isapprox(H * v, hprod(quadraticmodel, x, v), rtol=rtol)
+    @assert isapprox(H * v, hprod(model, x, v), rtol=rtol)
   
     reset!(quadraticmodel)
   end
 
   for problem in ["simpleqp"]
-    try
-      eval(Symbol(problem))
-    catch
-      include("$problem.jl")
-    end
     problem_f = eval(Symbol(problem * "_autodiff"))
     nlp = problem_f()
     @printf("Checking QuadraticModel formulation of %-8s\t", problem)
