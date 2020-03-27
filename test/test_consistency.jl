@@ -1,40 +1,63 @@
 function check_quadratic_model(model, quadraticmodel)
-    @assert typeof(quadraticmodel) <: QuadraticModels.AbstractQuadraticModel
-    rtol  = 1e-8
-    @assert quadraticmodel.meta.nvar == model.meta.nvar
-    @assert quadraticmodel.meta.ncon == model.meta.ncon
+  @test typeof(quadraticmodel) <: QuadraticModels.AbstractQuadraticModel
+  rtol  = 1e-8
+  @test quadraticmodel.meta.nvar == model.meta.nvar
+  @test quadraticmodel.meta.ncon == model.meta.ncon
 
-    x = [-(-1.0)^i for i = 1:quadraticmodel.meta.nvar]
+  x = [-(-1.0)^i for i = 1:quadraticmodel.meta.nvar]
 
-    @assert isapprox(obj(model, x), obj(quadraticmodel, x), rtol=rtol)
+  @test isapprox(obj(model, x), obj(quadraticmodel, x), rtol=rtol)
 
-    f, g = objgrad(model, x)
-    f_quad, g_quad = objgrad(quadraticmodel, x)
+  f, g = objgrad(model, x)
+  f_quad, g_quad = objgrad(quadraticmodel, x)
 
-    @assert isapprox(f, f_quad, rtol=rtol)
-    @assert isapprox(g, g_quad, rtol=rtol)
-    @assert isapprox(cons(model, x), cons(quadraticmodel, x), rtol=rtol)
-    @assert isapprox(jac(model, x), jac(quadraticmodel, x), rtol=rtol)
+  @test isapprox(f, f_quad, rtol=rtol)
+  @test isapprox(g, g_quad, rtol=rtol)
+  @test isapprox(cons(model, x), cons(quadraticmodel, x), rtol=rtol)
+  @test isapprox(jac(model, x), jac(quadraticmodel, x), rtol=rtol)
 
-    v = [-(-1.0)^i for i = 1:quadraticmodel.meta.nvar]
-    u = [-(-1.0)^i for i = 1:quadraticmodel.meta.ncon]
+  v = [-(-1.0)^i for i = 1:quadraticmodel.meta.nvar]
+  u = [-(-1.0)^i for i = 1:quadraticmodel.meta.ncon]
 
-    @assert isapprox(jprod(model, x, v), jprod(quadraticmodel, x, v), rtol=rtol)
-    @assert isapprox(jtprod(model, x, u), jtprod(quadraticmodel, x, u), rtol=rtol)
+  @test isapprox(jprod(model, x, v), jprod(quadraticmodel, x, v), rtol=rtol)
+  @test isapprox(jtprod(model, x, u), jtprod(quadraticmodel, x, u), rtol=rtol)
 
-    H = hess_op(quadraticmodel, x)
-    @assert typeof(H) <: LinearOperators.AbstractLinearOperator
-    @assert size(H) == (model.meta.nvar, model.meta.nvar)
-    @assert isapprox(H * v, hprod(model, x, v), rtol=rtol)
+  H = hess_op(quadraticmodel, x)
+  @test typeof(H) <: LinearOperators.AbstractLinearOperator
+  @test size(H) == (model.meta.nvar, model.meta.nvar)
+  @test isapprox(H * v, hprod(model, x, v), rtol=rtol)
 
-    reset!(quadraticmodel)
+  reset!(quadraticmodel)
+end
+
+for problem in ["simpleqp"]
+  @info "Testing consistency of problem $problem"
+  nlp_ad = eval(Symbol(problem * "_autodiff"))()
+  nlp_qm = eval(Symbol(problem * "_QP"))()
+  nlps = [nlp_ad, nlp_qm]
+  # Excluding hprod until we change to coordinate format for H because
+  # hess_op uses opH, which doesn't increment the counters.
+  consistent_nlps(nlps)
+end
+
+for problem in [:brownden, :hs5, :hs6, :hs10, :hs11, :hs14, :lincon]
+  @info "Testing consistency of quadratic approximation of problem $problem"
+  include(joinpath(nlpmodels_problems_path, "$problem.jl"))
+  problem_s = string(problem)
+  nlp = eval(Meta.parse("$(problem)_autodiff"))()
+  x = nlp.meta.x0
+
+  fx, gx, Hx = obj(nlp, x), grad(nlp, x), Symmetric(hess(nlp, x), :L)
+  nlp_ad = if nlp.meta.ncon > 0
+    cx, Ax = cons(nlp, x), jac(nlp, x)
+    ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
+               lvar=nlp.meta.lvar - x, uvar=nlp.meta.uvar - x,
+               c=s -> Ax * s, lcon=nlp.meta.lcon - cx, ucon=nlp.meta.ucon - cx)
+  else
+    ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
+               lvar=nlp.meta.lvar - x, uvar=nlp.meta.uvar - x)
   end
-
-  for problem in ["simpleqp"]
-    problem_f = eval(Symbol(problem * "_autodiff"))
-    nlp = problem_f()
-    @printf("Checking QuadraticModel formulation of %-8s\t", problem)
-    quadratic_model = QuadraticModel(nlp, zeros(nlp.meta.nvar))
-    check_quadratic_model(nlp, quadratic_model)
-    @printf("✓\n")
-  end
+  nlp_qm = QuadraticModel(nlp, x)
+  nlps = [nlp_ad, nlp_qm]
+  consistent_nlps(nlps)
+end
