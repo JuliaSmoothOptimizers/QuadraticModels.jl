@@ -30,14 +30,13 @@ function check_quadratic_model(model, quadraticmodel)
   reset!(quadraticmodel)
 end
 
-for problem in ["simpleqp"]
-  @info "Testing consistency of problem $problem"
+for problem in qp_problems
+  @info "Checking consistency of problem $problem"
   nlp_ad = eval(Symbol(problem * "_autodiff"))()
   nlp_qm = eval(Symbol(problem * "_QP"))()
   nlps = [nlp_ad, nlp_qm]
-  # Excluding hprod until we change to coordinate format for H because
-  # hess_op uses opH, which doesn't increment the counters.
   consistent_nlps(nlps)
+  @info "  Consistency checks ✓"
 end
 
 for problem in [:brownden, :hs5, :hs6, :hs10, :hs11, :hs14, :lincon]

@@ -23,7 +23,7 @@ function QuadraticModel(c :: AbstractVector,
                         Hrows :: AbstractVector{<: Integer}, Hcols :: AbstractVector{<: Integer}, Hvals :: AbstractVector;
                         Arows :: AbstractVector{<: Integer} = Int[], Acols :: AbstractVector{<: Integer} = Int[], Avals :: AbstractVector = Float64[],
                         lcon :: AbstractVector = Float64[], ucon :: AbstractVector = Float64[],
-                        lvar :: AbstractVector = fill(-Inf, length(c)), uvar :: AbstractVector = fill(Int, length(c)),
+                        lvar :: AbstractVector = fill(-Inf, length(c)), uvar :: AbstractVector = fill(Inf, length(c)),
                         c0 :: Float64=0.0, kwargs...)
   nnzh = length(Hvals)
   if !(nnzh == length(Hrows) == length(Hcols))
