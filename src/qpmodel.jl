@@ -132,13 +132,13 @@ function NLPModels.hess_structure!(qp :: QuadraticModel, rows :: AbstractVector{
   return rows, cols
 end
 
-function NLPModels.hess_coord!(qp :: QuadraticModel, x :: AbstractVector, vals :: AbstractVector{<: AbstractFloat}; obj_weight :: Real=one(eltype(x)))
+function NLPModels.hess_coord!(qp :: QuadraticModel, x :: AbstractVector, vals :: AbstractVector; obj_weight :: Real=one(eltype(x)))
   NLPModels.increment!(qp, :neval_hess)
   vals .= obj_weight * qp.data.Hvals
   return vals
 end
 
-NLPModels.hess_coord!(qp :: QuadraticModel, x :: AbstractVector, y :: AbstractVector, vals :: AbstractVector{<: AbstractFloat}; obj_weight :: Real=one(eltype(x))) = hess_coord!(qp, x, vals, obj_weight=obj_weight)
+NLPModels.hess_coord!(qp :: QuadraticModel, x :: AbstractVector, y :: AbstractVector, vals :: AbstractVector; obj_weight :: Real=one(eltype(x))) = hess_coord!(qp, x, vals, obj_weight=obj_weight)
 
 function NLPModels.jac_structure!(qp :: QuadraticModel, rows :: AbstractVector{<: Integer}, cols :: AbstractVector{<: Integer})
   rows .= qp.data.Arows
@@ -146,7 +146,7 @@ function NLPModels.jac_structure!(qp :: QuadraticModel, rows :: AbstractVector{<
   return rows, cols
 end
 
-function NLPModels.jac_coord!(qp :: QuadraticModel, x :: AbstractVector, vals :: AbstractVector{<: AbstractFloat})
+function NLPModels.jac_coord!(qp :: QuadraticModel, x :: AbstractVector, vals :: AbstractVector)
   NLPModels.increment!(qp, :neval_jac)
   vals .= qp.data.Avals
   return vals
