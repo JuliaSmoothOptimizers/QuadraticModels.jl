@@ -20,7 +20,7 @@ export QuadraticModel
 include("qpmodel.jl")
 
 function __init__()
-    @require QPSReader = "758ba83c-e923-11e8-036a-3f93d0cb3d0c" include("qps.jl")
+    @require QPSReader = "10f199a5-22af-520b-b891-7ce84a7b1bd0" include("qps.jl")
 end
 
 end # module
