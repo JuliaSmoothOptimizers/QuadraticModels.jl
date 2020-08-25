@@ -3,6 +3,7 @@ using Printf, SparseArrays, Test
 
 # our packages
 using LinearAlgebra, LinearOperators, NLPModels, QuadraticModels
+using QPSReader
 
 nlpmodels_path = joinpath(dirname(pathof(NLPModels)), "..", "test")
 nlpmodels_problems_path = joinpath(nlpmodels_path, "problems")

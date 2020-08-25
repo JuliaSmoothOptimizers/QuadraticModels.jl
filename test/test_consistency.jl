@@ -34,7 +34,8 @@ for problem in qp_problems
   @info "Checking consistency of problem $problem"
   nlp_ad = eval(Symbol(problem * "_autodiff"))()
   nlp_qm = eval(Symbol(problem * "_QP"))()
-  nlps = [nlp_ad, nlp_qm]
+  nlp_qps = eval(Symbol(problem * "_QPSData"))()
+  nlps = [nlp_ad, nlp_qm, nlp_qps]
   consistent_nlps(nlps)
   @info "  Consistency checks ✓"
 end
