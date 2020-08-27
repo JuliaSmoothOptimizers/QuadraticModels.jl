@@ -48,6 +48,5 @@ function ineqconqp_QPSData()
   qps.lcon, qps.ucon = lcon, ucon
   qps.lvar, qps.uvar = lvar, uvar
   qps.nvar = length(x0)
-
   return QuadraticModel(qps, x0)
 end
