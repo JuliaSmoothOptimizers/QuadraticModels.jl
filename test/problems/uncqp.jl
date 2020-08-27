@@ -32,5 +32,7 @@ function uncqp_QPSData()
   qps.qrows, qps.qcols, qps.qvals = Hrows, Hcols, Hvals
   qps.c0 = c0
   qps.lvar, qps.uvar = lvar, uvar
+  qps.nvar = length(x0)
+  
   return QuadraticModel(qps, x0)
 end

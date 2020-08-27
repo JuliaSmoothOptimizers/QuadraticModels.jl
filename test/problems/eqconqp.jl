@@ -37,5 +37,7 @@ function eqconqp_QPSData()
   qps.arows, qps.acols, qps.avals = findnz(sparse(A))
   qps.lcon, qps.ucon = lcon, ucon
   qps.lvar, qps.uvar = lvar, uvar
+  qps.nvar = length(c)
+
   return QuadraticModel(qps)
 end

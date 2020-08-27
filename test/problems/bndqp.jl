@@ -29,5 +29,6 @@ function bndqp_QPSData()
   qps.c = c
   qps.qrows, qps.qcols, qps.qvals = findnz(sparse(H))
   qps.lvar, qps.uvar = lvar, uvar
+  qps.nvar = length(x0)
   return QuadraticModel(qps, x0)
 end
