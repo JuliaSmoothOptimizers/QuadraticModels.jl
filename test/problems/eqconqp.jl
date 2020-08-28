@@ -8,7 +8,7 @@ function eqconqp_autodiff()
   lcon = [0.0]
   ucon = [0.0]
 
-  return ADNLPModel(f, x0, c=c, lcon=lcon, ucon=ucon, name="eqconqp_autodiff")
+  return ADNLPModel(f, x0, c, lcon, ucon, name="eqconqp_autodiff")
 end
 
 function eqconqp_QP()

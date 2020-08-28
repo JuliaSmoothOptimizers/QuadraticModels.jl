@@ -7,7 +7,7 @@ function ineqconqp_autodiff()
   lcon = [0.0; -Inf; -1.0]
   ucon = [Inf;  0.0;  1.0]
 
-  return ADNLPModel(f, x0, c=c, lcon=lcon, ucon=ucon, name="ineqconqp_autodiff")
+  return ADNLPModel(f, x0, c, lcon, ucon, name="ineqconqp_autodiff")
 end
 
 function ineqconqp_QP()

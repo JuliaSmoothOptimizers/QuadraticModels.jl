@@ -6,7 +6,7 @@ function bndqp_autodiff()
   uvar = [1.0; 1.0]
   lvar = [0.0; 0.0]
 
-  return ADNLPModel(f, x0, lvar=lvar, uvar=uvar, name="bndqp_autodiff")
+  return ADNLPModel(f, x0, lvar, uvar, name="bndqp_autodiff")
 end
 
 function bndqp_QP()
