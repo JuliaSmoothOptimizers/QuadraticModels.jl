@@ -34,7 +34,8 @@ for problem in qp_problems
   @info "Checking consistency of problem $problem"
   nlp_ad = eval(Symbol(problem * "_autodiff"))()
   nlp_qm = eval(Symbol(problem * "_QP"))()
-  nlps = [nlp_ad, nlp_qm]
+  nlp_qps = eval(Symbol(problem * "_QPSData"))()
+  nlps = [nlp_ad, nlp_qm, nlp_qps]
   consistent_nlps(nlps)
   @info "  Consistency checks ✓"
 end
@@ -50,11 +51,11 @@ for problem in [:brownden, :hs5, :hs6, :hs10, :hs11, :hs14, :lincon]
   nlp_ad = if nlp.meta.ncon > 0
     cx, Ax = cons(nlp, x), jac(nlp, x)
     ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
-               lvar=nlp.meta.lvar - x, uvar=nlp.meta.uvar - x,
-               c=s -> Ax * s, lcon=nlp.meta.lcon - cx, ucon=nlp.meta.ucon - cx)
+               nlp.meta.lvar - x, nlp.meta.uvar - x,
+               s -> Ax * s, nlp.meta.lcon - cx, nlp.meta.ucon - cx)
   else
     ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
-               lvar=nlp.meta.lvar - x, uvar=nlp.meta.uvar - x)
+               nlp.meta.lvar - x, nlp.meta.uvar - x)
   end
   nlp_qm = QuadraticModel(nlp, x)
   nlps = [nlp_ad, nlp_qm]

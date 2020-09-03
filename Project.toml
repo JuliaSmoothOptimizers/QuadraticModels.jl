@@ -14,13 +14,14 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 [compat]
 FastClosures = "0.2.1, 0.3.0"
 LinearOperators = "0.7.0, 1"
-NLPModels = "0.12"
+NLPModels = "0.13"
 Requires = "0.3, 0.4, 0.5"
 julia = "^1.0.0"
 
 [extras]
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+QPSReader = "10f199a5-22af-520b-b891-7ce84a7b1bd0"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Printf", "Test"]
+test = ["Printf", "Test", "QPSReader"]
