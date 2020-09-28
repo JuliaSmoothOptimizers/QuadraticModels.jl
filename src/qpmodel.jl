@@ -5,10 +5,10 @@ mutable struct QPData{T}
   c     :: Vector{T}           # linear term
   Hrows :: Vector{Int}      # quadratic term
   Hcols :: Vector{Int}
-  Hvals :: Vector
+  Hvals :: Vector{T}
   Arows :: Vector{Int}      # constraints matrix
   Acols :: Vector{Int}
-  Avals :: Vector
+  Avals :: Vector{T}
 end
 
 abstract type AbstractQuadraticModel <: AbstractNLPModel end
