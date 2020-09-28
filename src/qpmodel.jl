@@ -19,12 +19,12 @@ mutable struct QuadraticModel <: AbstractQuadraticModel
   data     :: QPData
 end
 
-function QuadraticModel(c :: AbstractVector,
+function QuadraticModel(c :: AbstractVector{T},
                         Hrows :: AbstractVector{<: Integer}, Hcols :: AbstractVector{<: Integer}, Hvals :: AbstractVector;
-                        Arows :: AbstractVector{<: Integer} = Int[], Acols :: AbstractVector{<: Integer} = Int[], Avals :: AbstractVector = eltype(c)[],
-                        lcon :: AbstractVector = eltype(c)[], ucon :: AbstractVector = eltype(c)[],
-                        lvar :: AbstractVector = fill(eltype(c)(-Inf), length(c)), uvar :: AbstractVector = fill(eltype(c)(Inf), length(c)),
-                        c0 :: T = zero(eltype(c)), kwargs...) where T
+                        Arows :: AbstractVector{<: Integer} = Int[], Acols :: AbstractVector{<: Integer} = Int[], Avals :: AbstractVector = T[],
+                        lcon :: AbstractVector = T[], ucon :: AbstractVector = T[],
+                        lvar :: AbstractVector = fill(T(-Inf), length(c)), uvar :: AbstractVector = fill(T(Inf), length(c)),
+                        c0 :: T = zero(T), kwargs...) where T
   nnzh = length(Hvals)
   if !(nnzh == length(Hrows) == length(Hcols))
     error("The length of Hrows, Hcols and Hvals must be the same")
@@ -49,11 +49,11 @@ function QuadraticModel(c :: AbstractVector,
                  QPData(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals))
 end
 
-function QuadraticModel(c :: AbstractVector, H :: AbstractMatrix;
-                        A :: AbstractMatrix=zeros(eltype(c), 0,length(c)),
-                        lcon :: AbstractVector=zeros(eltype(c), 0), ucon :: AbstractVector=zeros(eltype(c), 0),
-                        lvar :: AbstractVector = fill(eltype(c)(-Inf), length(c)), uvar :: AbstractVector = fill(eltype(c)(Inf), length(c)),
-                        c0 :: T = zero(eltype(c)), kwargs...) where T
+function QuadraticModel(c :: AbstractVector{T}, H :: AbstractMatrix;
+                        A :: AbstractMatrix=zeros(T, 0,length(c)),
+                        lcon :: AbstractVector=zeros(T, 0), ucon :: AbstractVector=zeros(T, 0),
+                        lvar :: AbstractVector = fill(T(-Inf), length(c)), uvar :: AbstractVector = fill(T(Inf), length(c)),
+                        c0 :: T = zero(T), kwargs...) where T
   ncon, nvar = size(A)
   nnzh, Hrows, Hcols, Hvals = if issparse(H)
     nnz(tril(H)), findnz(tril(H))...
@@ -61,12 +61,13 @@ function QuadraticModel(c :: AbstractVector, H :: AbstractMatrix;
     I = ((i,j,H[i,j]) for i = 1:nvar, j = 1:nvar if i ≥ j)
     div(nvar * (nvar + 1), 2), getindex.(I, 1), getindex.(I, 2), getindex.(I, 3)
   end
-  nnzj, Arows, Acols, Avals = if issparse(A)
+  nnzj, Arows, Acols, Avals = if ncon == 0
+    0, Int[], Int[], T[]
+  elseif issparse(A)
     nnz(A), findnz(A)...
   else
     I = ((i,j,A[i,j]) for i = 1:ncon, j = 1:nvar)
-    nvar * ncon, convert(Array{Int, 1}, getindex.(I, 1)[:]),
-      convert(Array{Int, 1}, getindex.(I, 2)[:]), getindex.(I, 3)[:]
+    nvar * ncon, getindex.(I, 1)[:], getindex.(I, 2)[:], getindex.(I, 3)[:]
   end
   QuadraticModel(NLPModelMeta(nvar, lvar=lvar, uvar=uvar,
                               ncon=size(A,1), lcon=lcon, ucon=ucon,
