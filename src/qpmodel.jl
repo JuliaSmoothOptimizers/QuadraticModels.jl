@@ -50,7 +50,7 @@ function QuadraticModel(c :: AbstractVector{T},
 end
 
 function QuadraticModel(c :: AbstractVector{T}, H :: AbstractMatrix;
-                        A :: AbstractMatrix=zeros(T, 0,length(c)),
+                        A :: AbstractMatrix=zeros(T, 0, length(c)),
                         lcon :: AbstractVector=zeros(T, 0), ucon :: AbstractVector=zeros(T, 0),
                         lvar :: AbstractVector = fill(T(-Inf), length(c)), uvar :: AbstractVector = fill(T(Inf), length(c)),
                         c0 :: T = zero(T), kwargs...) where T
