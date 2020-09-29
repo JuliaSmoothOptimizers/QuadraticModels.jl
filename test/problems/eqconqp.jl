@@ -14,7 +14,7 @@ end
 function eqconqp_QP()
   n    = 50
   c    = zeros(n)
-  H    = spdiagm(0 => 1:n)
+  H    = spdiagm(0 => 1.0:n)
   A    = ones(1, n)
   lcon = [1.0]
   ucon = [1.0]
@@ -25,7 +25,7 @@ end
 function eqconqp_QPSData()
   n    = 50
   c    = zeros(n)
-  H    = spdiagm(0 => 1:n)
+  H    = spdiagm(0 => 1.0:n)
   A    = ones(1, n)
   lcon = [1.0]
   ucon = [1.0]
