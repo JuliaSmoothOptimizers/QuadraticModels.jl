@@ -30,7 +30,19 @@ function check_quadratic_model(model, quadraticmodel)
   reset!(quadraticmodel)
 end
 
-for problem in qp_problems
+for problem in qp_problems_Matrix
+  @info "Checking consistency of problem $problem"
+  nlp_ad = eval(Symbol(problem * "_autodiff"))()
+  nlp_qps = eval(Symbol(problem * "_QPSData"))()
+  nlp_qm_dense = eval(Symbol(problem * "_QP_dense"))()
+  nlp_qm_sparse = eval(Symbol(problem * "_QP_sparse"))()
+  nlp_qm_symmetric = eval(Symbol(problem * "_QP_symmetric"))()
+  nlps = [nlp_ad, nlp_qm_dense, nlp_qm_sparse, nlp_qm_symmetric, nlp_qps]
+  consistent_nlps(nlps)
+  @info "  Consistency checks ✓"
+end
+
+for problem in qp_problems_COO
   @info "Checking consistency of problem $problem"
   nlp_ad = eval(Symbol(problem * "_autodiff"))()
   nlp_qm = eval(Symbol(problem * "_QP"))()

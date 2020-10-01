@@ -49,18 +49,15 @@ function QuadraticModel(c :: AbstractVector{T},
                  QPData(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals))
 end
 
-function QuadraticModel(c :: AbstractVector{T}, H :: Symmetric{T,<:AbstractMatrix};
+function QuadraticModel(c :: AbstractVector{T}, H :: SparseMatrixCSC{T, Int};
                         A :: AbstractMatrix = zeros(T, 0, length(c)),
                         lcon :: AbstractVector = zeros(T, 0), ucon :: AbstractVector = zeros(T, 0),
                         lvar :: AbstractVector = fill(T(-Inf), length(c)), uvar :: AbstractVector = fill(T(Inf), length(c)),
                         c0 :: T = zero(T), kwargs...) where T
   ncon, nvar = size(A)
+  tril!(H)
   nnzh, Hrows, Hcols, Hvals =
-    nnz(H.data), findnz(H.data)...
-  # else
-  #   I = ((i,j,H[i,j]) for i = 1:nvar, j = 1:nvar if i ≥ j)
-  #   div(nvar * (nvar + 1), 2), getindex.(I, 1), getindex.(I, 2), getindex.(I, 3)
-  # end
+    nnz(H), findnz(H)...
   nnzj, Arows, Acols, Avals = if ncon == 0
     0, Int[], Int[], T[]
   elseif issparse(A)
@@ -76,6 +73,8 @@ function QuadraticModel(c :: AbstractVector{T}, H :: Symmetric{T,<:AbstractMatri
                  Counters(),
                  QPData(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals))
 end
+
+QuadraticModel(c :: AbstractVector{T}, H :: AbstractMatrix; args...) where T = QuadraticModel(c, sparse(H); args...)
 
 """
     QuadraticModel(nlp, x)
@@ -102,11 +101,6 @@ function QuadraticModel(model :: AbstractNLPModel, x :: AbstractVector; kwargs..
   end
 end
 
-QuadraticModel(c :: AbstractVector{T}, H :: SparseMatrixCSC{T,Int};
-                        args...) where T = QuadraticModel(c, Symmetric(H, :L); args...)
-QuadraticModel(c :: AbstractVector{T}, H ::AbstractMatrix;
-                        args...) where T = QuadraticModel(c, sparse(H); args...)
-                        
 linobj(qp::AbstractQuadraticModel, args...) = qp.data.c
 
 function NLPModels.objgrad!(qp :: AbstractQuadraticModel, x :: AbstractVector, g :: AbstractVector)

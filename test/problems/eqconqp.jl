@@ -11,10 +11,32 @@ function eqconqp_autodiff()
   return ADNLPModel(f, x0, c, lcon, ucon, name="eqconqp_autodiff")
 end
 
-function eqconqp_QP()
+function eqconqp_QP_dense()
+  n    = 50
+  c    = zeros(n)
+  H    = Matrix(spdiagm(0 => 1.0:n))
+  A    = ones(1, n)
+  lcon = [1.0]
+  ucon = [1.0]
+
+  return QuadraticModel(c, H, A=A, lcon=lcon, ucon=ucon, name="eqconqp_QP")
+end
+
+function eqconqp_QP_sparse()
   n    = 50
   c    = zeros(n)
   H    = spdiagm(0 => 1.0:n)
+  A    = ones(1, n)
+  lcon = [1.0]
+  ucon = [1.0]
+
+  return QuadraticModel(c, H, A=A, lcon=lcon, ucon=ucon, name="eqconqp_QP")
+end
+
+function eqconqp_QP_symmetric()
+  n    = 50
+  c    = zeros(n)
+  H    = Symmetric(spdiagm(0 => 1.0:n), :L)
   A    = ones(1, n)
   lcon = [1.0]
   ucon = [1.0]
