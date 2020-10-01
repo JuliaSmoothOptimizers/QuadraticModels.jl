@@ -3,7 +3,7 @@ function eqconqp_autodiff()
 
   n    = 50
   x0   = zeros(n)
-  f(x) = sum(i * x[i]^2 for i = 1:n) / 2
+  f(x) = sum(i * x[i]^2 for i = 1:n) / 2 + x[1] * x[n]
   c(x) = [sum(x) - 1.0]
   lcon = [0.0]
   ucon = [0.0]
@@ -14,7 +14,8 @@ end
 function eqconqp_QP_dense()
   n    = 50
   c    = zeros(n)
-  H    = Matrix(spdiagm(0 => 1.0:n))
+  H    = diagm(0 => 1.0:n)
+  H[n, 1] = 1.0
   A    = ones(1, n)
   lcon = [1.0]
   ucon = [1.0]
@@ -26,6 +27,7 @@ function eqconqp_QP_sparse()
   n    = 50
   c    = zeros(n)
   H    = spdiagm(0 => 1.0:n)
+  H[n, 1] = 1.0
   A    = ones(1, n)
   lcon = [1.0]
   ucon = [1.0]
@@ -36,7 +38,9 @@ end
 function eqconqp_QP_symmetric()
   n    = 50
   c    = zeros(n)
-  H    = Symmetric(spdiagm(0 => 1.0:n), :L)
+  H    = spdiagm(0 => 1.0:n)
+  H[n, 1] = 1.0
+  H    = Symmetric(H, :L)
   A    = ones(1, n)
   lcon = [1.0]
   ucon = [1.0]
@@ -48,6 +52,7 @@ function eqconqp_QPSData()
   n    = 50
   c    = zeros(n)
   H    = spdiagm(0 => 1.0:n)
+  H[n, 1] = 1.0
   A    = ones(1, n)
   lcon = [1.0]
   ucon = [1.0]

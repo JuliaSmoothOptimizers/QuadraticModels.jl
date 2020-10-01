@@ -56,8 +56,7 @@ function QuadraticModel(c :: AbstractVector{T}, H :: SparseMatrixCSC{T, Int};
                         c0 :: T = zero(T), kwargs...) where T
   ncon, nvar = size(A)
   tril!(H)
-  nnzh, Hrows, Hcols, Hvals =
-    nnz(H), findnz(H)...
+  nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
   nnzj, Arows, Acols, Avals = if ncon == 0
     0, Int[], Int[], T[]
   elseif issparse(A)

@@ -10,7 +10,7 @@ nlpmodels_problems_path = joinpath(nlpmodels_path, "problems")
 # Definition of quadratic problems
 qp_problems_Matrix = ["bndqp", "eqconqp"]
 qp_problems_COO = ["uncqp", "ineqconqp"]
-for qp in vcat(qp_problems_Matrix, qp_problems_COO)
+for qp in [qp_problems_Matrix; qp_problems_COO]
   include(joinpath("problems", "$qp.jl"))
 end
 
