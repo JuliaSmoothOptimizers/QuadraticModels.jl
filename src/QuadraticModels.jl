@@ -13,7 +13,8 @@ import NLPModels:
     objgrad, objgrad!, obj, grad, grad!,
     hess_coord, hess, hess_op, hprod,
     cons, cons!,
-    jac_coord, jac, jac_op, jprod, jtprod
+    jac_coord, jac, jac_op, jprod, jtprod,
+    SlackModel, slack_meta
 
 export QuadraticModel
 

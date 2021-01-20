@@ -181,3 +181,19 @@ function NLPModels.jtprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v 
   coo_prod!(qp.data.Acols, qp.data.Arows, qp.data.Avals, v, Atv)
   return Atv
 end
+
+function NLPModels.SlackModel(qp :: AbstractQuadraticModel, name=qp.meta.name * "-slack")
+  qp.meta.ncon == length(qp.meta.jfix) && return qp
+  
+  nfix = length(qp.meta.jfix)
+  ns = qp.meta.ncon - nfix
+  T = eltype(qp.data.c)
+  qp.data.Arows = [qp.data.Arows; qp.meta.jlow; qp.meta.jupp; qp.meta.jrng]
+  qp.data.Acols = [qp.data.Acols; qp.meta.nvar+1:qp.meta.nvar+ns]
+  qp.data.Avals = [qp.data.Avals; .-ones(T, ns)]
+  qp.data.c = [qp.data.c; zeros(T, ns)]
+
+  meta = NLPModels.slack_meta(qp.meta, name=name)
+  qp.meta = meta
+  return qp
+end
