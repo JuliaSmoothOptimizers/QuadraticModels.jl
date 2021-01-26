@@ -188,10 +188,12 @@ function SlackModel!(qp :: AbstractQuadraticModel)
   nfix = length(qp.meta.jfix)
   ns = qp.meta.ncon - nfix
   T = eltype(qp.data.c)
-  qp.data.Arows = [qp.data.Arows; qp.meta.jlow; qp.meta.jupp; qp.meta.jrng]
-  qp.data.Acols = [qp.data.Acols; qp.meta.nvar+1:qp.meta.nvar+ns]
-  qp.data.Avals = [qp.data.Avals; .-ones(T, ns)]
-  qp.data.c = [qp.data.c; zeros(T, ns)]
+  append!(qp.data.Arows, qp.meta.jlow)
+  append!(qp.data.Arows, qp.meta.jupp)
+  append!(qp.data.Arows, qp.meta.jrng)
+  append!(qp.data.Acols, qp.meta.nvar+1:qp.meta.nvar+ns)
+  append!(qp.data.Avals, .-ones(T, ns))
+  append!(qp.data.c, zeros(T, ns))
 
   qp.meta = NLPModels.slack_meta(qp.meta, name=qp.meta.name)
   return qp
