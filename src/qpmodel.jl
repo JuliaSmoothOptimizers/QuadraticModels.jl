@@ -192,8 +192,8 @@ function SlackModel!(qp :: AbstractQuadraticModel)
   append!(qp.data.Arows, qp.meta.jupp)
   append!(qp.data.Arows, qp.meta.jrng)
   append!(qp.data.Acols, qp.meta.nvar+1:qp.meta.nvar+ns)
-  append!(qp.data.Avals, .-ones(T, ns))
-  append!(qp.data.c, zeros(T, ns))
+  append!(qp.data.Avals, (-one(T) for _ = 1 : ns))
+  append!(qp.data.c, (zero(T) for _ = 1 : ns))
 
   qp.meta = NLPModels.slack_meta(qp.meta, name=qp.meta.name)
   return qp
