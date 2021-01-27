@@ -1,4 +1,4 @@
-export jac_structure!, hess_structure!, jac_coord!, hess_coord!
+export jac_structure!, hess_structure!, jac_coord!, hess_coord!, SlackModel!
 
 mutable struct QPData{T}
   c0    :: T          # constant term in objective
@@ -180,4 +180,41 @@ function NLPModels.jtprod!(qp :: AbstractQuadraticModel, x :: AbstractVector, v 
   NLPModels.increment!(qp, :neval_jtprod)
   coo_prod!(qp.data.Acols, qp.data.Arows, qp.data.Avals, v, Atv)
   return Atv
+end
+
+function SlackModel!(qp :: AbstractQuadraticModel)
+  qp.meta.ncon == length(qp.meta.jfix) && return qp
+  
+  nfix = length(qp.meta.jfix)
+  ns = qp.meta.ncon - nfix
+  T = eltype(qp.data.c)
+  append!(qp.data.Arows, qp.meta.jlow)
+  append!(qp.data.Arows, qp.meta.jupp)
+  append!(qp.data.Arows, qp.meta.jrng)
+  append!(qp.data.Acols, qp.meta.nvar+1:qp.meta.nvar+ns)
+  append!(qp.data.Avals, (-one(T) for _ = 1 : ns))
+  append!(qp.data.c, (zero(T) for _ = 1 : ns))
+
+  qp.meta = NLPModels.slack_meta(qp.meta, name=qp.meta.name)
+  return qp
+end
+
+function NLPModels.SlackModel(qp :: AbstractQuadraticModel, name=qp.meta.name * "-slack")
+  qp.meta.ncon == length(qp.meta.jfix) && return qp
+  nfix = length(qp.meta.jfix)
+  ns = qp.meta.ncon - nfix
+  T = eltype(qp.data.c)
+
+  data = QPData(copy(qp.data.c0),
+                [qp.data.c; zeros(T, ns)],
+                copy(qp.data.Hrows),
+                copy(qp.data.Hcols),
+                copy(qp.data.Hvals),
+                [qp.data.Arows; qp.meta.jlow; qp.meta.jupp; qp.meta.jrng],
+                [qp.data.Acols; qp.meta.nvar+1:qp.meta.nvar+ns],
+                [qp.data.Avals; .-ones(T, ns)],
+                )
+  meta = NLPModels.slack_meta(qp.meta, name=qp.meta.name)
+  
+  return QuadraticModel( meta, Counters(), data)
 end
