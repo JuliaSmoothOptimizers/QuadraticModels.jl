@@ -1,11 +1,8 @@
 # stdlib
-using Printf, SparseArrays, Test
+using LinearAlgebra, Printf, SparseArrays, Test
 
 # our packages
-using LinearAlgebra, LinearOperators, NLPModels, QPSReader, QuadraticModels
-
-nlpmodels_path = joinpath(dirname(pathof(NLPModels)), "..", "test")
-nlpmodels_problems_path = joinpath(nlpmodels_path, "problems")
+using ADNLPModels, LinearOperators, NLPModels, NLPModelsModifiers, NLPModelsTest, QPSReader, QuadraticModels
 
 # Definition of quadratic problems
 qp_problems_Matrix = ["bndqp", "eqconqp"]
@@ -14,7 +11,6 @@ for qp in [qp_problems_Matrix; qp_problems_COO]
   include(joinpath("problems", "$qp.jl"))
 end
 
-include(joinpath(nlpmodels_path, "consistency.jl"))
 include("test_consistency.jl")
 
 function testSM(sm) # test function for a specific problem
@@ -35,7 +31,7 @@ function testSM(sm) # test function for a specific problem
   @test all(sparse(sm.data.Arows, sm.data.Acols, sm.data.Avals, 2, 5) .== A_sm_true)
   @test all(sparse(sm.data.Hrows, sm.data.Hcols, sm.data.Hvals, 5, 5) .== H_sm_true)
 end
-  
+
 
 @testset "SlackModel" begin
   H = [6. 2. 1.
@@ -51,7 +47,7 @@ end
   qp = QuadraticModel(c, H, A=A, lcon=[-3; -4], ucon=[-2.; Inf], lvar=l, uvar=u, c0=0., name="QM1")
   sm = SlackModel(qp)
   testSM(sm)
-  
+
   SlackModel!(qp)
   testSM(qp)
 end

@@ -4,10 +4,10 @@ module QuadraticModels
 using LinearAlgebra, SparseArrays
 
 # our packages
-using LinearOperators, NLPModels
+using LinearOperators, NLPModels, NLPModelsModifiers
 
 # auxiliary packages
-using FastClosures, Requires
+using Requires
 
 import NLPModels:
     objgrad, objgrad!, obj, grad, grad!,

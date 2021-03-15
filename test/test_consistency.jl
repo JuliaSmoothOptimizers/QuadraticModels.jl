@@ -52,24 +52,23 @@ for problem in qp_problems_COO
   @info "  Consistency checks ✓"
 end
 
-for problem in [:brownden, :hs5, :hs6, :hs10, :hs11, :hs14, :lincon]
-  @info "Testing consistency of quadratic approximation of problem $problem"
-  include(joinpath(nlpmodels_problems_path, "$problem.jl"))
-  problem_s = string(problem)
-  nlp = eval(Meta.parse("$(problem)_autodiff"))()
-  x = nlp.meta.x0
+for problem in NLPModelsTest.nlp_problems
+  @testset "Testing consistency of quadratic approximation of problem $problem" begin
+    nlp = eval(Symbol(problem))()
+    x = nlp.meta.x0
 
-  fx, gx, Hx = obj(nlp, x), grad(nlp, x), Symmetric(hess(nlp, x), :L)
-  nlp_ad = if nlp.meta.ncon > 0
-    cx, Ax = cons(nlp, x), jac(nlp, x)
-    ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
-               nlp.meta.lvar - x, nlp.meta.uvar - x,
-               s -> Ax * s, nlp.meta.lcon - cx, nlp.meta.ucon - cx)
-  else
-    ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
-               nlp.meta.lvar - x, nlp.meta.uvar - x)
+    fx, gx, Hx = obj(nlp, x), grad(nlp, x), Symmetric(hess(nlp, x), :L)
+    nlp_ad = if nlp.meta.ncon > 0
+      cx, Ax = cons(nlp, x), jac(nlp, x)
+      ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
+                nlp.meta.lvar - x, nlp.meta.uvar - x,
+                s -> Ax * s, nlp.meta.lcon - cx, nlp.meta.ucon - cx)
+    else
+      ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
+                nlp.meta.lvar - x, nlp.meta.uvar - x)
+    end
+    nlp_qm = QuadraticModel(nlp, x)
+    nlps = [nlp_ad, nlp_qm]
+    consistent_nlps(nlps)
   end
-  nlp_qm = QuadraticModel(nlp, x)
-  nlps = [nlp_ad, nlp_qm]
-  consistent_nlps(nlps)
 end
