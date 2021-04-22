@@ -3,6 +3,8 @@
 Linux/macOS/Windows: ![CI](https://github.com/JuliaSmoothOptimizers/QuadraticModels.jl/workflows/CI/badge.svg?branch=master)
 FreeBSD: [![Build Status](https://api.cirrus-ci.com/github/JuliaSmoothOptimizers/QuadraticModels.jl.svg)](https://cirrus-ci.com/github/JuliaSmoothOptimizers/QuadraticModels.jl)
 [![codecov.io](http://codecov.io/github/JuliaSmoothOptimizers/QuadraticModels.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaSmoothOptimizers/QuadraticModels.jl?branch=master)
+[![Documentation/stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaSmoothOptimizers.github.io/QuadraticModels.jl/stable)
+[![Documentation/dev](https://img.shields.io/badge/docs-latest-blue.svg)](https://JuliaSmoothOptimizers.github.io/QuadraticModels.jl/latest)
 
 A package to model linear and quadratic optimization problems using the [NLPModels.jl](https://github.com/JuliaSmoothOptimizers/NLPModels.jl) data structures.
 
