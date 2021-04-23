@@ -2,7 +2,8 @@
 using LinearAlgebra, Printf, SparseArrays, Test
 
 # our packages
-using ADNLPModels, LinearOperators, NLPModels, NLPModelsModifiers, NLPModelsTest, QPSReader, QuadraticModels
+using ADNLPModels,
+  LinearOperators, NLPModels, NLPModelsModifiers, NLPModelsTest, QPSReader, QuadraticModels
 
 # Definition of quadratic problems
 qp_problems_Matrix = ["bndqp", "eqconqp"]
@@ -16,15 +17,21 @@ include("test_consistency.jl")
 function testSM(sm) # test function for a specific problem
   @test (sm.meta.ncon == 2 && sm.meta.nvar == 5)
   @test sm.meta.lcon == sm.meta.ucon
-  lvar_sm_true = [0.; 0.; 0.; -4.0; -3.0]
+  lvar_sm_true = [0.0; 0.0; 0.0; -4.0; -3.0]
   uvar_sm_true = [Inf; Inf; Inf; Inf; -2.0]
-  H_sm_true = sparse([6. 0. 0. 0. 0.
-                      2. 5. 0. 0. 0.
-                      1. 2. 4. 0. 0.
-                      0. 0. 0. 0. 0.
-                      0. 0. 0. 0. 0.])
-  A_sm_true = sparse([1.  0.  1.  0.  -1.
-                      0.  2.  1.  -1.  0.])
+  H_sm_true = sparse(
+    [
+      6.0 0.0 0.0 0.0 0.0
+      2.0 5.0 0.0 0.0 0.0
+      1.0 2.0 4.0 0.0 0.0
+      0.0 0.0 0.0 0.0 0.0
+      0.0 0.0 0.0 0.0 0.0
+    ],
+  )
+  A_sm_true = sparse([
+    1.0 0.0 1.0 0.0 -1.0
+    0.0 2.0 1.0 -1.0 0.0
+  ])
 
   @test all(lvar_sm_true .== sm.meta.lvar)
   @test all(uvar_sm_true .== sm.meta.uvar)
@@ -32,19 +39,32 @@ function testSM(sm) # test function for a specific problem
   @test all(sparse(sm.data.Hrows, sm.data.Hcols, sm.data.Hvals, 5, 5) .== H_sm_true)
 end
 
-
 @testset "SlackModel" begin
-  H = [6. 2. 1.
-       2. 5. 2.
-       1. 2. 4.]
-  c = [-8.; -3; -3]
-  A = [1. 0. 1.
-       0. 2. 1.]
-  b = [0.; 3]
-  l = [0.;0;0]
+  H = [
+    6.0 2.0 1.0
+    2.0 5.0 2.0
+    1.0 2.0 4.0
+  ]
+  c = [-8.0; -3; -3]
+  A = [
+    1.0 0.0 1.0
+    0.0 2.0 1.0
+  ]
+  b = [0.0; 3]
+  l = [0.0; 0; 0]
   u = [Inf; Inf; Inf]
   T = eltype(c)
-  qp = QuadraticModel(c, H, A=A, lcon=[-3; -4], ucon=[-2.; Inf], lvar=l, uvar=u, c0=0., name="QM1")
+  qp = QuadraticModel(
+    c,
+    H,
+    A = A,
+    lcon = [-3; -4],
+    ucon = [-2.0; Inf],
+    lvar = l,
+    uvar = u,
+    c0 = 0.0,
+    name = "QM1",
+  )
   sm = SlackModel(qp)
   testSM(sm)
 
