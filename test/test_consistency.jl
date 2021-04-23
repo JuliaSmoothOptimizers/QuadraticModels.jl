@@ -1,31 +1,31 @@
 function check_quadratic_model(model, quadraticmodel)
   @test typeof(quadraticmodel) <: QuadraticModels.AbstractQuadraticModel
-  rtol  = 1e-8
+  rtol = 1e-8
   @test quadraticmodel.meta.nvar == model.meta.nvar
   @test quadraticmodel.meta.ncon == model.meta.ncon
 
-  x = [-(-1.0)^i for i = 1:quadraticmodel.meta.nvar]
+  x = [-(-1.0)^i for i = 1:(quadraticmodel.meta.nvar)]
 
-  @test isapprox(obj(model, x), obj(quadraticmodel, x), rtol=rtol)
+  @test isapprox(obj(model, x), obj(quadraticmodel, x), rtol = rtol)
 
   f, g = objgrad(model, x)
   f_quad, g_quad = objgrad(quadraticmodel, x)
 
-  @test isapprox(f, f_quad, rtol=rtol)
-  @test isapprox(g, g_quad, rtol=rtol)
-  @test isapprox(cons(model, x), cons(quadraticmodel, x), rtol=rtol)
-  @test isapprox(jac(model, x), jac(quadraticmodel, x), rtol=rtol)
+  @test isapprox(f, f_quad, rtol = rtol)
+  @test isapprox(g, g_quad, rtol = rtol)
+  @test isapprox(cons(model, x), cons(quadraticmodel, x), rtol = rtol)
+  @test isapprox(jac(model, x), jac(quadraticmodel, x), rtol = rtol)
 
-  v = [-(-1.0)^i for i = 1:quadraticmodel.meta.nvar]
-  u = [-(-1.0)^i for i = 1:quadraticmodel.meta.ncon]
+  v = [-(-1.0)^i for i = 1:(quadraticmodel.meta.nvar)]
+  u = [-(-1.0)^i for i = 1:(quadraticmodel.meta.ncon)]
 
-  @test isapprox(jprod(model, x, v), jprod(quadraticmodel, x, v), rtol=rtol)
-  @test isapprox(jtprod(model, x, u), jtprod(quadraticmodel, x, u), rtol=rtol)
+  @test isapprox(jprod(model, x, v), jprod(quadraticmodel, x, v), rtol = rtol)
+  @test isapprox(jtprod(model, x, u), jtprod(quadraticmodel, x, u), rtol = rtol)
 
   H = hess_op(quadraticmodel, x)
   @test typeof(H) <: LinearOperators.AbstractLinearOperator
   @test size(H) == (model.meta.nvar, model.meta.nvar)
-  @test isapprox(H * v, hprod(model, x, v), rtol=rtol)
+  @test isapprox(H * v, hprod(model, x, v), rtol = rtol)
 
   reset!(quadraticmodel)
 end
@@ -60,12 +60,22 @@ for problem in NLPModelsTest.nlp_problems
     fx, gx, Hx = obj(nlp, x), grad(nlp, x), Symmetric(hess(nlp, x), :L)
     nlp_ad = if nlp.meta.ncon > 0
       cx, Ax = cons(nlp, x), jac(nlp, x)
-      ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
-                nlp.meta.lvar - x, nlp.meta.uvar - x,
-                s -> Ax * s, nlp.meta.lcon - cx, nlp.meta.ucon - cx)
+      ADNLPModel(
+        s -> fx + dot(gx, s) + dot(s, Hx * s) / 2,
+        zeros(nlp.meta.nvar),
+        nlp.meta.lvar - x,
+        nlp.meta.uvar - x,
+        s -> Ax * s,
+        nlp.meta.lcon - cx,
+        nlp.meta.ucon - cx,
+      )
     else
-      ADNLPModel(s -> fx + dot(gx, s) + dot(s, Hx * s) / 2, zeros(nlp.meta.nvar),
-                nlp.meta.lvar - x, nlp.meta.uvar - x)
+      ADNLPModel(
+        s -> fx + dot(gx, s) + dot(s, Hx * s) / 2,
+        zeros(nlp.meta.nvar),
+        nlp.meta.lvar - x,
+        nlp.meta.uvar - x,
+      )
     end
     nlp_qm = QuadraticModel(nlp, x)
     nlps = [nlp_ad, nlp_qm]
