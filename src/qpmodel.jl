@@ -19,11 +19,11 @@ abstract type AbstractQuadraticModel <: AbstractNLPModel end
 
     qp = QuadraticModel(c, H; A = A, lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar)
 
-Creates a Quadratic model ``min ~\\tfrac{1}{2} x^T Q x + c^T x + c_0`` with optional bounds
+Create a Quadratic model ``min ~\\tfrac{1}{2} x^T Q x + c^T x + c_0`` with optional bounds
 `lvar ≦ x ≦ uvar` and optional linear constraints `lcon ≦ Ax ≦ ucon`.
 
 You can also use [`QPSReader.jl`](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) to
-create a Quadratic model:
+create a Quadratic model from a QPS file:
 
     using QPSReader
     qps = readqps("QAFIRO.SIF")
