@@ -36,20 +36,20 @@ mutable struct QuadraticModel{T, S} <: AbstractQuadraticModel{T, S}
 end
 
 function QuadraticModel(
-  c::AbstractVector{T},
+  c::S,
   Hrows::AbstractVector{<:Integer},
   Hcols::AbstractVector{<:Integer},
-  Hvals::AbstractVector;
+  Hvals::S;
   Arows::AbstractVector{<:Integer} = Int[],
   Acols::AbstractVector{<:Integer} = Int[],
-  Avals::AbstractVector = similar(c, 0),
-  lcon::AbstractVector = similar(c, 0),
-  ucon::AbstractVector = similar(c, 0),
-  lvar::AbstractVector = fill!(similar(c, length(c)), T(-Inf)),
-  uvar::AbstractVector = fill!(similar(c, length(c)), T(Inf)),
-  c0::T = zero(T),
+  Avals::S = S(undef, 0),
+  lcon::S = S(undef, 0),
+  ucon::S = S(undef, 0),
+  lvar::S = fill!(S(undef, length(c)), eltype(c)(-Inf)),
+  uvar::S = fill!(S(undef, length(c)), eltype(c)(Inf)),
+  c0::T = zero(eltype(c)),
   kwargs...,
-) where {T}
+) where {T, S}
   nnzh = length(Hvals)
   if !(nnzh == length(Hrows) == length(Hcols))
     error("The length of Hrows, Hcols and Hvals must be the same")
@@ -87,16 +87,16 @@ function QuadraticModel(
 end
 
 function QuadraticModel(
-  c::AbstractVector{T},
+  c::S,
   H::SparseMatrixCSC{T, Int};
   A::AbstractMatrix = similar(c, 0, length(c)),
-  lcon::AbstractVector = similar(c, 0),
-  ucon::AbstractVector = similar(c, 0),
-  lvar::AbstractVector = fill!(similar(c, length(c)), T(-Inf)),
-  uvar::AbstractVector = fill!(similar(c, length(c)), T(Inf)),
+  lcon::S = S(undef, 0),
+  ucon::S = S(undef, 0),
+  lvar::S = fill!(S(undef, length(c)), T(-Inf)),
+  uvar::S = fill!(S(undef, length(c)), T(Inf)),
   c0::T = zero(T),
   kwargs...,
-) where {T}
+) where {T, S}
   ncon, nvar = size(A)
   tril!(H)
   nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
@@ -128,7 +128,7 @@ function QuadraticModel(
   )
 end
 
-QuadraticModel(c::AbstractVector{T}, H::AbstractMatrix; args...) where {T} =
+QuadraticModel(c::S, H::AbstractMatrix; args...) where {S} =
   QuadraticModel(c, sparse(H); args...)
 
 """

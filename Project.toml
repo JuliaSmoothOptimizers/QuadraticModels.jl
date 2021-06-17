@@ -4,7 +4,6 @@ authors = ["Dominique Orban <dominique.orban@gmail.com>"]
 version = "0.3.0"
 
 [deps]
-ADNLPModels = "54578032-b7ea-4c30-94aa-7cbd1cce6c9a"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LinearOperators = "5c8ed15e-5a4c-59e4-a42b-c7e8811fb125"
 NLPModels = "a4795742-8479-5a88-8948-cc11e1c8c1a6"
