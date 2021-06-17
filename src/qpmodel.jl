@@ -1,17 +1,17 @@
 export jac_structure!, hess_structure!, jac_coord!, hess_coord!, SlackModel!
 
-mutable struct QPData{T}
+mutable struct QPData{T, S}
   c0::T          # constant term in objective
-  c::Vector{T}           # linear term
+  c::S          # linear term
   Hrows::Vector{Int}      # quadratic term
   Hcols::Vector{Int}
-  Hvals::Vector{T}
+  Hvals::S
   Arows::Vector{Int}      # constraints matrix
   Acols::Vector{Int}
-  Avals::Vector{T}
+  Avals::S
 end
 
-abstract type AbstractQuadraticModel <: AbstractNLPModel end
+abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
 
 """
     qp = QuadraticModel(c, Hrows, Hcols, Hvals; Arows = Arows, Acols = Acols, Avals = Avals, 
@@ -29,10 +29,10 @@ create a Quadratic model from a QPS file:
     qps = readqps("QAFIRO.SIF")
     qp = QuadraticModel(qps)
 """
-mutable struct QuadraticModel <: AbstractQuadraticModel
-  meta::NLPModelMeta
+mutable struct QuadraticModel{T, S} <: AbstractQuadraticModel{T, S}
+  meta::NLPModelMeta{T, S}
   counters::Counters
-  data::QPData
+  data::QPData{T, S}
 end
 
 function QuadraticModel(
@@ -42,11 +42,11 @@ function QuadraticModel(
   Hvals::AbstractVector;
   Arows::AbstractVector{<:Integer} = Int[],
   Acols::AbstractVector{<:Integer} = Int[],
-  Avals::AbstractVector = T[],
-  lcon::AbstractVector = T[],
-  ucon::AbstractVector = T[],
-  lvar::AbstractVector = fill(T(-Inf), length(c)),
-  uvar::AbstractVector = fill(T(Inf), length(c)),
+  Avals::AbstractVector = similar(c, 0),
+  lcon::AbstractVector = similar(c, 0),
+  ucon::AbstractVector = similar(c, 0),
+  lvar::AbstractVector = fill!(similar(c, length(c)), T(-Inf)),
+  uvar::AbstractVector = fill!(similar(c, length(c)), T(Inf)),
   c0::T = zero(T),
   kwargs...,
 ) where {T}
@@ -89,11 +89,11 @@ end
 function QuadraticModel(
   c::AbstractVector{T},
   H::SparseMatrixCSC{T, Int};
-  A::AbstractMatrix = zeros(T, 0, length(c)),
-  lcon::AbstractVector = zeros(T, 0),
-  ucon::AbstractVector = zeros(T, 0),
-  lvar::AbstractVector = fill(T(-Inf), length(c)),
-  uvar::AbstractVector = fill(T(Inf), length(c)),
+  A::AbstractMatrix = similar(c, 0, length(c)),
+  lcon::AbstractVector = similar(c, 0),
+  ucon::AbstractVector = similar(c, 0),
+  lvar::AbstractVector = fill!(similar(c, length(c)), T(-Inf)),
+  uvar::AbstractVector = fill!(similar(c, length(c)), T(Inf)),
   c0::T = zero(T),
   kwargs...,
 ) where {T}
@@ -101,7 +101,7 @@ function QuadraticModel(
   tril!(H)
   nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
   nnzj, Arows, Acols, Avals = if ncon == 0
-    0, Int[], Int[], T[]
+    0, Int[], Int[], similar(c, 0)
   elseif issparse(A)
     nnz(A), findnz(A)...
   else
@@ -136,7 +136,7 @@ QuadraticModel(c::AbstractVector{T}, H::AbstractMatrix; args...) where {T} =
 
 Creates a quadratic Taylor model of `nlp` around `x`.
 """
-function QuadraticModel(model::AbstractNLPModel, x::AbstractVector; kwargs...)
+function QuadraticModel(model::AbstractNLPModel{T, S}, x::AbstractVector; kwargs...) where {T, S}
   nvar = model.meta.nvar
   ncon = model.meta.ncon
   c0 = obj(model, x)
@@ -160,7 +160,7 @@ function QuadraticModel(model::AbstractNLPModel, x::AbstractVector; kwargs...)
       ucon = model.meta.ucon .- c,
       lvar = model.meta.lvar .- x,
       uvar = model.meta.uvar .- x,
-      x0 = zeros(model.meta.nvar),
+      x0 = fill!(S(undef, model.meta.nvar), zero(T)),
     )
   else
     QuadraticModel(
@@ -171,7 +171,7 @@ function QuadraticModel(model::AbstractNLPModel, x::AbstractVector; kwargs...)
       c0 = c0,
       lvar = model.meta.lvar .- x,
       uvar = model.meta.uvar .- x,
-      x0 = zeros(model.meta.nvar),
+      x0 = fill!(S(undef, model.meta.nvar), zero(T)),
     )
   end
 end
@@ -187,9 +187,9 @@ function NLPModels.objgrad!(qp::AbstractQuadraticModel, x::AbstractVector, g::Ab
   return f, g
 end
 
-function NLPModels.obj(qp::AbstractQuadraticModel, x::AbstractVector)
+function NLPModels.obj(qp::AbstractQuadraticModel{T, S}, x::AbstractVector) where {T, S}
   NLPModels.increment!(qp, :neval_obj)
-  Hx = zeros(qp.meta.nvar)
+  Hx = fill!(S(undef, qp.meta.nvar), zero(T))
   coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, Hx)
   return qp.data.c0 + dot(qp.data.c, x) + dot(Hx, x) / 2
 end
@@ -325,13 +325,13 @@ function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel, name = qp.met
 
   data = QPData(
     copy(qp.data.c0),
-    [qp.data.c; zeros(T, ns)],
+    [qp.data.c; fill!(similar(qp.data.c, ns), zero(T))],
     copy(qp.data.Hrows),
     copy(qp.data.Hcols),
     copy(qp.data.Hvals),
     [qp.data.Arows; qp.meta.jlow; qp.meta.jupp; qp.meta.jrng],
     [qp.data.Acols; (qp.meta.nvar + 1):(qp.meta.nvar + ns)],
-    [qp.data.Avals; .-ones(T, ns)],
+    [qp.data.Avals; fill!(similar(qp.data.c, ns), -one(T))],
   )
   meta = NLPModelsModifiers.slack_meta(qp.meta, name = qp.meta.name)
 
