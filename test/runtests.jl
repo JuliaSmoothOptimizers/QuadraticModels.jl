@@ -58,7 +58,7 @@ end
     c,
     H,
     A = A,
-    lcon = [-3.; -4.],
+    lcon = [-3.0; -4.0],
     ucon = [-2.0; Inf],
     lvar = l,
     uvar = u,

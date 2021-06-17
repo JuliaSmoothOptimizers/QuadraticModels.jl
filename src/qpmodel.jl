@@ -128,8 +128,7 @@ function QuadraticModel(
   )
 end
 
-QuadraticModel(c::S, H::AbstractMatrix; args...) where {S} =
-  QuadraticModel(c, sparse(H); args...)
+QuadraticModel(c::S, H::AbstractMatrix; args...) where {S} = QuadraticModel(c, sparse(H); args...)
 
 """
     QuadraticModel(nlp, x)
