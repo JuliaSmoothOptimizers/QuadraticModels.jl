@@ -71,3 +71,5 @@ end
   SlackModel!(qp)
   testSM(qp)
 end
+
+include("test_presolve.jl")

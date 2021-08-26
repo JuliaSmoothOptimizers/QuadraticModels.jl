@@ -29,9 +29,10 @@ import NLPModels:
   SlackModel,
   slack_meta
 
-export QuadraticModel
+export QuadraticModel, presolve, postsolve!
 
 include("qpmodel.jl")
+include("presolve/presolve.jl")
 
 function __init__()
   @require QPSReader = "10f199a5-22af-520b-b891-7ce84a7b1bd0" include("qps.jl")
