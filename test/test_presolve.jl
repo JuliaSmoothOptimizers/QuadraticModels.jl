@@ -27,7 +27,9 @@
     
   psqp = presolve(qp)
 
-  Hps_true =   H = [
+  c_true = [-4.0; 1.0]
+  c0_true = 4.0
+  Hps_true = [
     6.0 1.0
     1.0 4.0
   ]
@@ -35,18 +37,22 @@
     1.0 1.0
     0.0 1.0
   ]
-
   lvarps_true, uvarps_true = [0. ; 0.], [Inf; Inf]
-  @test psqp.meta.lvar == lvarps_true
-  @test psqp.meta.uvar == uvarps_true
-  println(psqp.data.c)
-  println(psqp.data.c0)
-  Aps = sparse(psqp.data.Arows, psqp.data.Acols, psqp.data.Avals, psqp.meta.ncon, psqp.meta.nvar)
-  @test norm(Aps - sparse(Aps_true)) ≤ sqrt(eps(T))
+
+  @test psqp.data.c == [-4.0; 1.0]
+  @test psqp.data.c0 == 4.0
   Hps = sparse(psqp.data.Hrows, psqp.data.Hcols, psqp.data.Hvals, psqp.meta.ncon, psqp.meta.nvar)
   @test norm(Symmetric(Hps, :L) - sparse(Hps_true)) ≤ sqrt(eps(T))
+  Aps = sparse(psqp.data.Arows, psqp.data.Acols, psqp.data.Avals, psqp.meta.ncon, psqp.meta.nvar)
+  @test norm(Aps - sparse(Aps_true)) ≤ sqrt(eps(T))
+  @test psqp.meta.lvar == lvarps_true
+  @test psqp.meta.uvar == uvarps_true
   @test psqp.xrm == [2.0]
   @test psqp.meta.ifix == Int[]
   @test psqp.meta.nvar == 2
 
+  x_in = [4.0; 7.0]
+  x_out = zeros(3)
+  postsolve!(qp, psqp, x_in, x_out)
+  @test x_out == [4.0; 2.0; 7.0]
 end

@@ -1,5 +1,20 @@
 # ̃xᵀ̃Hx̃ + ̃ĉᵀx̃ + lⱼ²Hⱼⱼ + cⱼxⱼ + c₀
-# ̂c = ̃c + 2lⱼΣₖHⱼₖxₖ , k ≂̸ j  
+# ̂c = ̃c + 2lⱼΣₖHⱼₖxₖ , k ≂̸ j
+
+"""
+    xrm, c0ps, nvarrm = remove_ifix!(ifix, Hrows, Hcols, Hvals, nvar, 
+                                     Arows, Acols, Avals, c, c0, 
+                                     lvar, uvar, lcon, ucon)
+
+Remove rows and columns in H, columns in A, and elements in lcon and ucon
+corresponding to fixed variables, that are in `ifix`
+(They should be the indices `i` where `lvar[i] == uvar[i]`).
+
+Returns the removed elements of `lvar` (or `uvar`), the offset in the QP
+objective `c0ps`, and the new number of variables `nvarrm`.
+`Hrows`, `Hcols`, `Hvals`, `Arows`, `Acols`, `Avals`, `c`, `lvar`, `uvar`,
+`lcon` and `ucon` are updated in-place.
+"""
 function remove_ifix!(
   ifix,
   Hrows,
@@ -30,10 +45,13 @@ function remove_ifix!(
   for idxfix = 1:nfix
     currentifix = ifix[idxfix]
     xifix = lvar[currentifix]
+    # value of the current fixed variable that takes the number of 
+    # already removed variables into account:
     newcurrentifix = currentifix - idxfix + 1
 
     Hwritepos = 1
-    shiftHj = 1 # increase Hj of currentj - 1 if Hj
+    # shift corresponding to the already removed fixed variables to update c:
+    shiftHj = 1 
     if Hnnz > 0
       oldHj = Hrows[1]
     end
@@ -58,7 +76,7 @@ function remove_ifix!(
       elseif Hj == newcurrentifix
         Hrm += 1
         c[Hi + shiftHi - 1] += xifix * Hx
-      else
+      else # keep Hi, Hj, Hx
         Hrows[Hwritepos] = (Hi < newcurrentifix) ? Hi : Hi - 1
         Hcols[Hwritepos] = (Hj < newcurrentifix) ? Hj : Hj - 1
         Hvals[Hwritepos] = Hx

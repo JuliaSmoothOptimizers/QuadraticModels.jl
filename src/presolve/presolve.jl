@@ -1,6 +1,6 @@
 include("remove_ifix.jl")
 
-mutable struct PresolvedQuadraticModel{T <: Real, S} <: AbstractQuadraticModel{T, S}
+mutable struct PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
   counters::Counters
   data::QPData{T, S}
@@ -25,6 +25,15 @@ function copy_data(data::QPData, meta::NLPModelMeta)
   return psdata, lcon, ucon, lvar, uvar, nvar, ncon 
 end
 
+"""
+    psqm = presolve(qm::QuadraticModel{T, S}; kwargs...)
+
+Apply a presolve routine to `qm` and returns a `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}`.
+The presolve operations currently implemented are:
+
+- [`remove_ifix!`](@ref)
+
+"""
 function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
 
   psdata, lcon, ucon, lvar, uvar, nvar, ncon = copy_data(qm.data, qm.meta)
@@ -80,8 +89,15 @@ function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
   return ps
 end
 
+"""
+    postsolve!(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, 
+               x_in::S, x_out::S) where {T, S}
+
+Retrieve the solution `x_out` of the original QP `qm` given the solution of the presolved QP (`psqm`)
+`x_in`.
+"""
 function postsolve!(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, x_in::S, x_out::S) where {T, S}
-  if length(id.ifix) > 0
+  if length(qm.meta.ifix) > 0
     restore_ifix!(qm.meta.ifix, psqm.xrm, x_in, x_out)
   end
 end

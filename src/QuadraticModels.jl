@@ -29,7 +29,7 @@ import NLPModels:
   SlackModel,
   slack_meta
 
-export QuadraticModel, presolve, postsolve!
+export AbstractQuadraticModel, QuadraticModel, presolve, postsolve!
 
 include("qpmodel.jl")
 include("presolve/presolve.jl")
