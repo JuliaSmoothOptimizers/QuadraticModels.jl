@@ -70,7 +70,7 @@ function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
   if !(nnzj == length(psdata.Arows) == length(psdata.Acols))
     error("The length of Arows, Acols and Avals must be the same")
   end
-  psmeta = NLPModelMeta(
+  psmeta = NLPModelMeta{T, S}(
     nvarps,
     lvar = lvar,
     uvar = uvar,
