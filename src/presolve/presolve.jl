@@ -82,6 +82,7 @@ function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
     lin = 1:ncon,
     nln = Int[],
     islp = (ncon == 0);
+    minimize = qm.meta.minimize,
     kwargs...,
   )
   ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, xrm)
@@ -99,5 +100,7 @@ Retrieve the solution `x_out` of the original QP `qm` given the solution of the 
 function postsolve!(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, x_in::S, x_out::S) where {T, S}
   if length(qm.meta.ifix) > 0
     restore_ifix!(qm.meta.ifix, psqm.xrm, x_in, x_out)
+  else
+    x_out .= @views x_in[1: qm.meta.nvar]
   end
 end
