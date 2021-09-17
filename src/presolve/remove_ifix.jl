@@ -10,8 +10,8 @@ Remove rows and columns in H, columns in A, and elements in lcon and ucon
 corresponding to fixed variables, that are in `ifix`
 (They should be the indices `i` where `lvar[i] == uvar[i]`).
 
-Returns the removed elements of `lvar` (or `uvar`), the offset in the QP
-objective `c0ps`, and the new number of variables `nvarrm`.
+Returns the removed elements of `lvar` (or `uvar`), the constant term in the QP
+objective `c0ps` resulting from the fixed variables, and the new number of variables `nvarrm`.
 `Hrows`, `Hcols`, `Hvals`, `Arows`, `Acols`, `Avals`, `c`, `lvar`, `uvar`,
 `lcon` and `ucon` are updated in-place.
 """
@@ -45,7 +45,7 @@ function remove_ifix!(
   for idxfix = 1:nfix
     currentifix = ifix[idxfix]
     xifix = lvar[currentifix]
-    # value of the current fixed variable that takes the number of 
+    # index of the current fixed variable that takes the number of 
     # already removed variables into account:
     newcurrentifix = currentifix - idxfix + 1
 
