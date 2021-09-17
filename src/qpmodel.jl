@@ -48,6 +48,7 @@ function QuadraticModel(
   lvar::S = fill!(S(undef, length(c)), eltype(c)(-Inf)),
   uvar::S = fill!(S(undef, length(c)), eltype(c)(Inf)),
   c0::T = zero(eltype(c)),
+  sortcols::Bool = false,
   kwargs...,
 ) where {T, S}
   nnzh = length(Hvals)
@@ -65,6 +66,16 @@ function QuadraticModel(
   nvar = length(c)
   if !(nvar == length(lvar) == length(uvar))
     error("The length of c, lvar and uvar must be the same")
+  end
+  if sortcols
+    pH = sortperm(Hcols)
+    permute!(Hrows, pH)
+    permute!(Hcols, pH)
+    permute!(Hvals, pH)
+    pA = sortperm(Acols)
+    permute!(Arows, pA)
+    permute!(Acols, pA)
+    permute!(Avals, pA)
   end
   QuadraticModel(
     NLPModelMeta(

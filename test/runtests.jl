@@ -72,4 +72,34 @@ end
   testSM(qp)
 end
 
+@testset "sort cols COO" begin
+  Hrows = [1; 2; 1; 3]
+  Hcols = [2; 1; 4; 4]
+  Hvals = [1.0; 2.0; 3.0; 4.0]
+  Arows = [2; 2; 1; 4]
+  Acols = [4; 3; 1; 2]
+  Avals = [-1.0; -2.0; -3.0; -4.0]
+  c = [-8.0; -3; -3; 2.0]
+  l = [0.0; 0; 0; 0]
+  u = [Inf; Inf; Inf; Inf]
+  qp = QuadraticModel(
+    c,
+    Hrows,
+    Hcols,
+    Hvals,
+    Arows = Arows,
+    Acols = Acols,
+    Avals = Avals,
+    lcon = [-3.0; -4.0; 2.0; 1.0],
+    ucon = [-2.0; Inf; Inf; Inf],
+    lvar = l,
+    uvar = u,
+    c0 = 0.0,
+    name = "QM1",
+    sortcols = true,
+  )
+  @test issorted(Hcols)
+  @test issorted(Acols)
+end
+
 include("test_presolve.jl")
