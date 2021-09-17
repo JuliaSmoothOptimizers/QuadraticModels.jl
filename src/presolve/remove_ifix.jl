@@ -31,7 +31,7 @@ function remove_ifix!(
   lcon,
   ucon,
 ) where {T}
-  
+
   # assume Hcols is sorted
   c0_offset = zero(T)
   Hnnz = length(Hrows)
@@ -51,7 +51,7 @@ function remove_ifix!(
 
     Hwritepos = 1
     # shift corresponding to the already removed fixed variables to update c:
-    shiftHj = 1 
+    shiftHj = 1
     if Hnnz > 0
       oldHj = Hrows[1]
     end
@@ -59,7 +59,7 @@ function remove_ifix!(
     k = 1
     while k <= Hnnz && Hcols[k] <= (nvar - idxfix + 1)
       Hi, Hj, Hx = Hrows[k], Hcols[k], Hvals[k] # Hj sorted 
-  
+
       while (Hj == oldHj) && shiftHj <= idxfix - 1 && Hj + shiftHj - 1 >= ifix[shiftHj]
         shiftHj += 1
       end
