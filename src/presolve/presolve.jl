@@ -7,24 +7,6 @@ mutable struct PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}
   xrm::S
 end
 
-function copy_data(data::QPData, meta::NLPModelMeta)
-  psdata = QPData(
-    copy(data.c0),
-    copy(data.c),
-    copy(data.Hrows),
-    copy(data.Hcols),
-    copy(data.Hvals),
-    copy(data.Arows),
-    copy(data.Acols),
-    copy(data.Avals),
-  )
-  lcon, ucon = copy(meta.lcon), copy(meta.ucon)
-  lvar, uvar = copy(meta.lvar), copy(meta.uvar)
-  nvar, ncon = copy(meta.nvar), copy(meta.ncon)
-
-  return psdata, lcon, ucon, lvar, uvar, nvar, ncon 
-end
-
 """
     psqm = presolve(qm::QuadraticModel{T, S}; kwargs...)
 
@@ -36,7 +18,11 @@ The presolve operations currently implemented are:
 """
 function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
 
-  psdata, lcon, ucon, lvar, uvar, nvar, ncon = copy_data(qm.data, qm.meta)
+  psqm = deepcopy(qm)
+  psdata = psqm.data
+  lvar, uvar = psqm.meta.lvar, psqm.meta.uvar
+  lcon, ucon = psqm.meta.lcon, psqm.meta.ucon
+  nvar, ncon = psqm.meta.nvar, psqm.meta.ncon
 
   ifix = qm.meta.ifix
   if length(ifix) > 0
