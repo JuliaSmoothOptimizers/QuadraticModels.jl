@@ -24,7 +24,7 @@
     c0 = 0.0,
     name = "QM1",
   )
-    
+
   psqp = presolve(qp)
 
   c_true = [-4.0; 1.0]
@@ -37,7 +37,7 @@
     1.0 1.0
     0.0 1.0
   ]
-  lvarps_true, uvarps_true = [0. ; 0.], [Inf; Inf]
+  lvarps_true, uvarps_true = [0.0; 0.0], [Inf; Inf]
 
   @test psqp.data.c == [-4.0; 1.0]
   @test psqp.data.c0 == 4.0

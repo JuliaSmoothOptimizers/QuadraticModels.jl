@@ -17,7 +17,6 @@ The presolve operations currently implemented are:
 
 """
 function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
-
   psqm = deepcopy(qm)
   psdata = psqm.data
   lvar, uvar = psqm.meta.lvar, psqm.meta.uvar
@@ -83,10 +82,15 @@ end
 Retrieve the solution `x_out` of the original QP `qm` given the solution of the presolved QP (`psqm`)
 `x_in`.
 """
-function postsolve!(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, x_in::S, x_out::S) where {T, S}
+function postsolve!(
+  qm::QuadraticModel{T, S},
+  psqm::PresolvedQuadraticModel{T, S},
+  x_in::S,
+  x_out::S,
+) where {T, S}
   if length(qm.meta.ifix) > 0
     restore_ifix!(qm.meta.ifix, psqm.xrm, x_in, x_out)
   else
-    x_out .= @views x_in[1: qm.meta.nvar]
+    x_out .= @views x_in[1:(qm.meta.nvar)]
   end
 end
