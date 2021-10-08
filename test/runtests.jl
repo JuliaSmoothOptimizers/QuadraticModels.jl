@@ -56,7 +56,7 @@ end
   T = eltype(c)
   qp = QuadraticModel(
     c,
-    H,
+    sparse(H),
     A = A,
     lcon = [-3.0; -4.0],
     ucon = [-2.0; Inf],
