@@ -1,6 +1,8 @@
 export jac_structure!, hess_structure!, jac_coord!, hess_coord!, SlackModel!
 
-mutable struct QPData{T, S}
+abstract type AbstractQPData{T, S} end
+
+mutable struct QPDataCOO{T, S} <: AbstractQPData{T, S}
   c0::T          # constant term in objective
   c::S          # linear term
   Hrows::Vector{Int}      # quadratic term
@@ -9,6 +11,13 @@ mutable struct QPData{T, S}
   Arows::Vector{Int}      # constraints matrix
   Acols::Vector{Int}
   Avals::S
+end
+
+mutable struct QPDataDense{T, S, M1 <: AbstractMatrix{T}, M2 <: AbstractMatrix{T}} <: AbstractQPData{T, S}
+  c0::T          # constant term in objective
+  c::S          # linear term
+  H::M1
+  A::M2
 end
 
 abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
@@ -29,10 +38,10 @@ create a Quadratic model from a QPS file:
     qps = readqps("QAFIRO.SIF")
     qp = QuadraticModel(qps)
 """
-mutable struct QuadraticModel{T, S} <: AbstractQuadraticModel{T, S}
+mutable struct QuadraticModel{T, S, D <: AbstractQPData{T, S}} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
   counters::Counters
-  data::QPData{T, S}
+  data::D
 end
 
 function QuadraticModel(
@@ -93,13 +102,13 @@ function QuadraticModel(
       kwargs...,
     ),
     Counters(),
-    QPData(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals),
+    QPDataCOO(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals),
   )
 end
 
 function QuadraticModel(
   c::S,
-  H::SparseMatrixCSC{T, Int};
+  H::AbstractMatrix{T};
   A::AbstractMatrix = similar(c, 0, length(c)),
   lcon::S = S(undef, 0),
   ucon::S = S(undef, 0),
@@ -109,15 +118,21 @@ function QuadraticModel(
   kwargs...,
 ) where {T, S}
   ncon, nvar = size(A)
-  tril!(H)
-  nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
-  nnzj, Arows, Acols, Avals = if ncon == 0
-    0, Int[], Int[], similar(c, 0)
-  elseif issparse(A)
-    nnz(A), findnz(A)...
+  if typeof(H) <: SparseMatrixCSC
+    tril!(H)
+    nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
+    nnzj, Arows, Acols, Avals = if ncon == 0
+      0, Int[], Int[], similar(c, 0)
+    elseif issparse(A)
+      nnz(A), findnz(A)...
+    else
+      I = ((i, j, A[i, j]) for i = 1:ncon, j = 1:nvar)
+      nvar * ncon, getindex.(I, 1)[:], getindex.(I, 2)[:], getindex.(I, 3)[:]
+    end
+    data = QPDataCOO(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals)
   else
-    I = ((i, j, A[i, j]) for i = 1:ncon, j = 1:nvar)
-    nvar * ncon, getindex.(I, 1)[:], getindex.(I, 2)[:], getindex.(I, 3)[:]
+    nnzh, nnzj = nvar^2, nvar*ncon
+    data = QPDataDense(c0, c, H, A)
   end
   QuadraticModel(
     NLPModelMeta(
@@ -135,7 +150,7 @@ function QuadraticModel(
       kwargs...,
     ),
     Counters(),
-    QPData(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals),
+    data,
   )
 end
 
@@ -191,7 +206,11 @@ linobj(qp::AbstractQuadraticModel, args...) = qp.data.c
 function NLPModels.objgrad!(qp::AbstractQuadraticModel, x::AbstractVector, g::AbstractVector)
   NLPModels.increment!(qp, :neval_obj)
   NLPModels.increment!(qp, :neval_grad)
-  coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, g)
+  if typeof(qp.data) <: QPDataCOO
+    coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, g)
+  else
+    mul!(g, Symmetric(qp.data.H, :L), x)
+  end
   f = qp.data.c0 + dot(qp.data.c, x) + dot(g, x) / 2
   @. g .+= qp.data.c
   return f, g
@@ -200,13 +219,21 @@ end
 function NLPModels.obj(qp::AbstractQuadraticModel{T, S}, x::AbstractVector) where {T, S}
   NLPModels.increment!(qp, :neval_obj)
   Hx = fill!(S(undef, qp.meta.nvar), zero(T))
-  coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, Hx)
+  if typeof(qp.data) <: QPDataCOO
+    coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, Hx)
+  else
+    mul!(Hx, Symmetric(qp.data.H, :L), x)
+  end
   return qp.data.c0 + dot(qp.data.c, x) + dot(Hx, x) / 2
 end
 
 function NLPModels.grad!(qp::AbstractQuadraticModel, x::AbstractVector, g::AbstractVector)
   NLPModels.increment!(qp, :neval_grad)
-  coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, g)
+  if typeof(qp.data) <: QPDataCOO
+    coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, g)
+  else
+    mul!(g, Symmetric(qp.data.H, :L), x)
+  end
   g .+= qp.data.c
   return g
 end
@@ -218,19 +245,38 @@ function NLPModels.hess_structure!(
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 )
-  rows .= qp.data.Hrows
-  cols .= qp.data.Hcols
+  if typeof(qp.data) <: QPDataCOO
+    rows .= qp.data.Hrows
+    cols .= qp.data.Hcols
+  else
+    nvar = qp.meta.nvar
+    for j in 1:nvar
+      for i in 1:nvar
+        rows[i + (j-1) * nvar] = i
+        cols[i + (j-1) * nvar] = j
+      end
+    end
+  end
   return rows, cols
 end
 
 function NLPModels.hess_coord!(
-  qp::QuadraticModel,
-  x::AbstractVector,
-  vals::AbstractVector;
+  qp::QuadraticModel{T},
+  x::AbstractVector{T},
+  vals::AbstractVector{T};
   obj_weight::Real = one(eltype(x)),
-)
+) where {T}
   NLPModels.increment!(qp, :neval_hess)
-  vals .= obj_weight * qp.data.Hvals
+  if typeof(qp.data) <: QPDataCOO
+    vals .= obj_weight * qp.data.Hvals
+  else
+    nvar = qp.meta.nvar
+    for j in 1:nvar
+      for i in 1:nvar
+        vals[i + (j-1) * nvar] = (i ≥ j) ? obj_weight * qp.data.H[i, j] : zero(T)
+      end
+    end
+  end
   return vals
 end
 
@@ -247,20 +293,38 @@ function NLPModels.jac_structure!(
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 )
-  rows .= qp.data.Arows
-  cols .= qp.data.Acols
+  if typeof(qp.data) <: QPDataCOO
+    rows .= qp.data.Arows
+    cols .= qp.data.Acols
+  else
+    nvar, ncon = qp.meta.nvar, qp.meta.ncon
+    for j in 1:nvar
+      for i in 1:ncon
+        rows[i + (j-1) * ncon] = i
+        cols[i + (j-1) * ncon] = j
+      end
+    end
+  end
   return rows, cols
 end
 
 function NLPModels.jac_coord!(qp::QuadraticModel, x::AbstractVector, vals::AbstractVector)
   NLPModels.increment!(qp, :neval_jac)
-  vals .= qp.data.Avals
+  if typeof(qp.data) <: QPDataCOO
+    vals .= qp.data.Avals
+  else
+    vals .= @views qp.data.A[:]
+  end
   return vals
 end
 
 function NLPModels.cons!(qp::AbstractQuadraticModel, x::AbstractVector, c::AbstractVector)
   NLPModels.increment!(qp, :neval_cons)
-  coo_prod!(qp.data.Arows, qp.data.Acols, qp.data.Avals, x, c)
+  if typeof(qp.data) <: QPDataCOO
+    coo_prod!(qp.data.Arows, qp.data.Acols, qp.data.Avals, x, c)
+  else
+    mul!(c, qp.data.A, x)
+  end
   return c
 end
 
@@ -272,7 +336,11 @@ function NLPModels.hprod!(
   obj_weight::Real = one(eltype(x)),
 )
   NLPModels.increment!(qp, :neval_hprod)
-  coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, v, Hv)
+  if typeof(qp.data) <: QPDataCOO
+    coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, v, Hv)
+  else
+    mul!(Hv, Symmetric(qp.data.H, :L), v)
+  end
   if obj_weight != 1
     Hv .*= obj_weight
   end
@@ -295,7 +363,11 @@ function NLPModels.jprod!(
   Av::AbstractVector,
 )
   NLPModels.increment!(qp, :neval_jprod)
-  coo_prod!(qp.data.Arows, qp.data.Acols, qp.data.Avals, v, Av)
+  if typeof(qp.data) <: QPDataCOO
+    coo_prod!(qp.data.Arows, qp.data.Acols, qp.data.Avals, v, Av)
+  else
+    mul!(Av, qp.data.A, v)
+  end
   return Av
 end
 
@@ -306,7 +378,11 @@ function NLPModels.jtprod!(
   Atv::AbstractVector,
 )
   NLPModels.increment!(qp, :neval_jtprod)
-  coo_prod!(qp.data.Acols, qp.data.Arows, qp.data.Avals, v, Atv)
+  if typeof(qp.data) <: QPDataCOO
+    coo_prod!(qp.data.Acols, qp.data.Arows, qp.data.Avals, v, Atv)
+  else
+    mul!(Atv, transpose(qp.data.A), v)
+  end
   return Atv
 end
 
@@ -333,16 +409,21 @@ function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel, name = qp.met
   ns = qp.meta.ncon - nfix
   T = eltype(qp.data.c)
 
-  data = QPData(
-    copy(qp.data.c0),
-    [qp.data.c; fill!(similar(qp.data.c, ns), zero(T))],
-    copy(qp.data.Hrows),
-    copy(qp.data.Hcols),
-    copy(qp.data.Hvals),
-    [qp.data.Arows; qp.meta.jlow; qp.meta.jupp; qp.meta.jrng],
-    [qp.data.Acols; (qp.meta.nvar + 1):(qp.meta.nvar + ns)],
-    [qp.data.Avals; fill!(similar(qp.data.c, ns), -one(T))],
-  )
+  if typeof(qp.data) <: QPDataCOO
+    data = QPDataCOO(
+      copy(qp.data.c0),
+      [qp.data.c; fill!(similar(qp.data.c, ns), zero(T))],
+      copy(qp.data.Hrows),
+      copy(qp.data.Hcols),
+      copy(qp.data.Hvals),
+      [qp.data.Arows; qp.meta.jlow; qp.meta.jupp; qp.meta.jrng],
+      [qp.data.Acols; (qp.meta.nvar + 1):(qp.meta.nvar + ns)],
+      [qp.data.Avals; fill!(similar(qp.data.c, ns), -one(T))],
+    )
+  elseif typeof(qp.data) <: QPDataDense
+    error("convert to COO")
+  end
+
   meta = NLPModelsModifiers.slack_meta(qp.meta, name = qp.meta.name)
 
   return QuadraticModel(meta, Counters(), data)
