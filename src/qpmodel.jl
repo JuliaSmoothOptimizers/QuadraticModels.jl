@@ -20,6 +20,21 @@ mutable struct QPDataDense{T, S, M1 <: AbstractMatrix{T}, M2 <: AbstractMatrix{T
   A::M2
 end
 
+function get_QPDataCOO(c0::T, c ::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}, nvar::Int, ncon::Int) where {T, S}
+  tril!(H)
+  nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
+  nnzj, Arows, Acols, Avals = if ncon == 0
+    0, Int[], Int[], S(undef, 0)
+  elseif issparse(A)
+    nnz(A), findnz(A)...
+  else
+    I = ((i, j, A[i, j]) for i = 1:ncon, j = 1:nvar)
+    nvar * ncon, getindex.(I, 1)[:], getindex.(I, 2)[:], getindex.(I, 3)[:]
+  end
+  data = QPDataCOO(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals)
+  return data, nnzh, nnzj
+end
+
 abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
 
 """
@@ -37,6 +52,21 @@ create a Quadratic model from a QPS file:
     using QPSReader
     qps = readqps("QAFIRO.SIF")
     qp = QuadraticModel(qps)
+
+The created object of type `QuadraticModel{T, S, D}` contains the fields:
+- `meta` of type [`NLPModels.NLPModelMeta`](https://juliasmoothoptimizers.github.io/NLPModels.jl/stable/models/#NLPModels.NLPModelMeta) 
+  from [`NLPModels.jl`](https://github.com/JuliaSmoothOptimizers/NLPModels.jl),
+- `data`, a subtype of `AbstractQPData` which can be `QPDataCOO` or `QPDataDense`, depending on the input types
+  of the `A` and `H` matrices.
+- `counters` of type [`NLPModels.Counters`](https://juliasmoothoptimizers.github.io/NLPModels.jl/stable/reference/#NLPModels.Counters)
+  from [`NLPModels.jl`](https://github.com/JuliaSmoothOptimizers/NLPModels.jl).
+  
+Using [`NLPModelsModifiers.SlackModel`](https://juliasmoothoptimizers.github.io/NLPModelsModifiers.jl/stable/reference/#NLPModelsModifiers.SlackModel)
+from [`NLPModelsModifiers.jl`](https://github.com/JuliaSmoothOptimizers/NLPModelsModifiers.jl) with a `QuadraticModel` 
+based on a `QPDataDense` will convert the field `data` to a `QPDataCOO`.  
+
+Its in-place variant `SlackModel!` specific to QuadraticModels will only work with a `QuadraticModel` based on
+a `QPDataCOO`.
 """
 mutable struct QuadraticModel{T, S, D <: AbstractQPData{T, S}} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
@@ -119,17 +149,7 @@ function QuadraticModel(
 ) where {T, S}
   ncon, nvar = size(A)
   if typeof(H) <: SparseMatrixCSC
-    tril!(H)
-    nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
-    nnzj, Arows, Acols, Avals = if ncon == 0
-      0, Int[], Int[], similar(c, 0)
-    elseif issparse(A)
-      nnz(A), findnz(A)...
-    else
-      I = ((i, j, A[i, j]) for i = 1:ncon, j = 1:nvar)
-      nvar * ncon, getindex.(I, 1)[:], getindex.(I, 2)[:], getindex.(I, 3)[:]
-    end
-    data = QPDataCOO(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals)
+    data, nnzh, nnzj = get_QPDataCOO(c0, c, H, A, nvar, ncon)
   else
     nnzh, nnzj = nvar^2, nvar*ncon
     data = QPDataDense(c0, c, H, A)
@@ -384,12 +404,11 @@ function NLPModels.jtprod!(
   return Atv
 end
 
-function SlackModel!(qp::AbstractQuadraticModel)
+function SlackModel!(qp::QuadraticModel{T, S, QPDataCOO{T, S}}) where {T, S}
   qp.meta.ncon == length(qp.meta.jfix) && return qp
 
   nfix = length(qp.meta.jfix)
   ns = qp.meta.ncon - nfix
-  T = eltype(qp.data.c)
   append!(qp.data.Arows, qp.meta.jlow)
   append!(qp.data.Arows, qp.meta.jupp)
   append!(qp.data.Arows, qp.meta.jrng)
@@ -401,6 +420,19 @@ function SlackModel!(qp::AbstractQuadraticModel)
   return qp
 end
 
+function slackdata(data::QPDataCOO{T}, meta::NLPModelMeta{T}, ns::Int) where {T}
+  return QPDataCOO(
+    copy(data.c0),
+    [data.c; fill!(similar(data.c, ns), zero(T))],
+    copy(data.Hrows),
+    copy(data.Hcols),
+    copy(data.Hvals),
+    [data.Arows; meta.jlow; meta.jupp; meta.jrng],
+    [data.Acols; (meta.nvar + 1):(meta.nvar + ns)],
+    [data.Avals; fill!(similar(data.c, ns), -one(T))],
+  )
+end
+
 function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel, name = qp.meta.name * "-slack")
   qp.meta.ncon == length(qp.meta.jfix) && return qp
   nfix = length(qp.meta.jfix)
@@ -408,18 +440,10 @@ function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel, name = qp.met
   T = eltype(qp.data.c)
 
   if typeof(qp.data) <: QPDataCOO
-    data = QPDataCOO(
-      copy(qp.data.c0),
-      [qp.data.c; fill!(similar(qp.data.c, ns), zero(T))],
-      copy(qp.data.Hrows),
-      copy(qp.data.Hcols),
-      copy(qp.data.Hvals),
-      [qp.data.Arows; qp.meta.jlow; qp.meta.jupp; qp.meta.jrng],
-      [qp.data.Acols; (qp.meta.nvar + 1):(qp.meta.nvar + ns)],
-      [qp.data.Avals; fill!(similar(qp.data.c, ns), -one(T))],
-    )
-  elseif typeof(qp.data) <: QPDataDense
-    error("convert to COO")
+    data = slackdata(qp.data, qp.meta, ns)
+  elseif typeof(qp.data) <: QPDataDense # convert to QPDataCOO first
+    dataCOO, nnzj, nnzh = get_QPDataCOO(qp.data.c0, qp.data.c, sparse(qp.data.H), qp.data.A, qp.meta.nvar, qp.meta.ncon)
+    data = slackdata(dataCOO, qp.meta, ns)
   end
 
   meta = NLPModelsModifiers.slack_meta(qp.meta, name = qp.meta.name)
