@@ -70,6 +70,20 @@ end
 
   SlackModel!(qp)
   testSM(qp)
+
+  qpdense = QuadraticModel(
+    c,
+    H,
+    A = A,
+    lcon = [-3.0; -4.0],
+    ucon = [-2.0; Inf],
+    lvar = l,
+    uvar = u,
+    c0 = 0.0,
+    name = "QM1",
+  )
+  smdense = SlackModel(qpdense)
+  testSM(smdense)
 end
 
 @testset "sort cols COO" begin
