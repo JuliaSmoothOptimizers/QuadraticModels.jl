@@ -1,6 +1,6 @@
 include("remove_ifix.jl")
 
-mutable struct PresolvedQuadraticModel{T, S, D <: AbstractQPData} <: AbstractQuadraticModel{T, S}
+mutable struct PresolvedQuadraticModel{T, S, D <: AbstractQPData{T, S}} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
   counters::Counters
   data::D

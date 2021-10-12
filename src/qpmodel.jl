@@ -14,13 +14,14 @@ mutable struct QPDataCOO{T, S} <: AbstractQPData{T, S}
 end
 
 mutable struct QPDataDense{T, S, M1 <: AbstractMatrix{T}, M2 <: AbstractMatrix{T}} <: AbstractQPData{T, S}
-  c0::T          # constant term in objective
+  c0::T         # constant term in objective
   c::S          # linear term
   H::M1
   A::M2
 end
 
-function get_QPDataCOO(c0::T, c ::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}, nvar::Int, ncon::Int) where {T, S}
+function get_QPDataCOO(c0::T, c ::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
+  ncon, nvar = size(A)
   tril!(H)
   nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
   nnzj, Arows, Acols, Avals = if ncon == 0
@@ -34,6 +35,8 @@ function get_QPDataCOO(c0::T, c ::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}
   data = QPDataCOO(c0, c, Hrows, Hcols, Hvals, Arows, Acols, Avals)
   return data, nnzh, nnzj
 end
+
+get_QPDataCOO(c0::T, c :: S, H, A::AbstractMatrix{T}) where {T, S} = get_QPDataCOO(c0, c, sparse(H), A)
 
 abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
 
@@ -53,10 +56,10 @@ create a Quadratic model from a QPS file:
     qps = readqps("QAFIRO.SIF")
     qp = QuadraticModel(qps)
 
-The created object of type `QuadraticModel{T, S, D}` contains the fields:
+The instance of `QuadraticModel{T, S, D}` created contains the fields:
 - `meta` of type [`NLPModels.NLPModelMeta`](https://juliasmoothoptimizers.github.io/NLPModels.jl/stable/models/#NLPModels.NLPModelMeta) 
   from [`NLPModels.jl`](https://github.com/JuliaSmoothOptimizers/NLPModels.jl),
-- `data`, a subtype of `AbstractQPData` which can be `QPDataCOO` or `QPDataDense`, depending on the input types
+- `data`, a subtype of `AbstractQPData`, depending on the input types
   of the `A` and `H` matrices.
 - `counters` of type [`NLPModels.Counters`](https://juliasmoothoptimizers.github.io/NLPModels.jl/stable/reference/#NLPModels.Counters)
   from [`NLPModels.jl`](https://github.com/JuliaSmoothOptimizers/NLPModels.jl).
@@ -148,8 +151,8 @@ function QuadraticModel(
   kwargs...,
 ) where {T, S}
   ncon, nvar = size(A)
-  if typeof(H) <: SparseMatrixCSC
-    data, nnzh, nnzj = get_QPDataCOO(c0, c, H, A, nvar, ncon)
+  if issparse(H)
+    data, nnzh, nnzj = get_QPDataCOO(c0, c, H, A)
   else
     nnzh, nnzj = nvar^2, nvar*ncon
     data = QPDataDense(c0, c, H, A)
@@ -442,7 +445,7 @@ function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel, name = qp.met
   if typeof(qp.data) <: QPDataCOO
     data = slackdata(qp.data, qp.meta, ns)
   elseif typeof(qp.data) <: QPDataDense # convert to QPDataCOO first
-    dataCOO, nnzj, nnzh = get_QPDataCOO(qp.data.c0, qp.data.c, sparse(qp.data.H), qp.data.A, qp.meta.nvar, qp.meta.ncon)
+    dataCOO, nnzj, nnzh = get_QPDataCOO(qp.data.c0, qp.data.c, qp.data.H, qp.data.A)
     data = slackdata(dataCOO, qp.meta, ns)
   end
 
