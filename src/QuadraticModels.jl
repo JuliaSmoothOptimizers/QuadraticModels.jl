@@ -31,6 +31,7 @@ import NLPModels:
 
 export AbstractQuadraticModel, QuadraticModel, presolve, postsolve!
 
+include("linalg_utils.jl")
 include("qpmodel.jl")
 include("presolve/presolve.jl")
 

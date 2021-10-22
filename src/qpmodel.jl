@@ -154,7 +154,8 @@ function QuadraticModel(
   if issparse(H)
     data, nnzh, nnzj = get_QPDataCOO(c0, c, H, A)
   else
-    nnzh, nnzj = nvar^2, nvar*ncon
+    nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H)
+    nnzj = nnz(A)
     data = QPDataDense(c0, c, H, A)
   end
   QuadraticModel(
@@ -271,10 +272,12 @@ function NLPModels.hess_structure!(
     cols .= qp.data.Hcols
   else
     nvar = qp.meta.nvar
+    idx = 1
     for j in 1:nvar
-      for i in 1:nvar
-        rows[i + (j-1) * nvar] = i
-        cols[i + (j-1) * nvar] = j
+      for i in j:nvar
+        rows[idx] = i
+        cols[idx] = j
+        idx += 1
       end
     end
   end
@@ -292,9 +295,11 @@ function NLPModels.hess_coord!(
     vals .= obj_weight * qp.data.Hvals
   else
     nvar = qp.meta.nvar
+    idx = 1
     for j in 1:nvar
-      for i in 1:nvar
-        vals[i + (j-1) * nvar] = (i ≥ j) ? obj_weight * qp.data.H[i, j] : zero(T)
+      for i in j:nvar
+        vals[idx] = (i ≥ j) ? obj_weight * qp.data.H[i, j] : zero(T)
+        idx += 1
       end
     end
   end

@@ -5,6 +5,15 @@ using LinearAlgebra, Printf, SparseArrays, Test
 using ADNLPModels,
   LinearOperators, NLPModels, NLPModelsModifiers, NLPModelsTest, QPSReader, QuadraticModels
 
+@testset "test utils" begin
+  A = rand(10, 10)
+  @test nnz(A) == 100
+  @test nnz(Diagonal(A)) == 10
+  @test nnz(Symmetric(A)) == 55
+  v1, v2 = rand(10), rand(9)
+  @test nnz(SymTridiagonal(v1, v2)) == 19
+end
+
 # Definition of quadratic problems
 qp_problems_Matrix = ["bndqp", "eqconqp"]
 qp_problems_COO = ["uncqp", "ineqconqp"]
