@@ -21,7 +21,14 @@ mutable struct QPDataDense{T, S, M1 <: AbstractMatrix{T}, M2 <: AbstractMatrix{T
   A::M2
 end
 
-function get_QPDataCOO(c0::T, c::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
+mutable struct QPDataLinOp{T, S, L1 <: AbstractLinearOperator{T}, L2 <: AbstractLinearOperator{T}} <: AbstractQPData{T, S}
+  c0::T
+  c::S
+  H::L1
+  A::L2
+end
+
+function get_QPDataCOO(c0::T, c ::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
   ncon, nvar = size(A)
   tril!(H)
   nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
@@ -143,8 +150,8 @@ end
 
 function QuadraticModel(
   c::S,
-  H::AbstractMatrix{T};
-  A::AbstractMatrix = similar(c, 0, length(c)),
+  H::Union{AbstractMatrix{T}, AbstractLinearOperator{T}};
+  A::Union{AbstractMatrix, AbstractLinearOperator} = similar(c, 0, length(c)),
   lcon::S = S(undef, 0),
   ucon::S = S(undef, 0),
   lvar::S = fill!(S(undef, length(c)), T(-Inf)),
@@ -153,7 +160,11 @@ function QuadraticModel(
   kwargs...,
 ) where {T, S}
   ncon, nvar = size(A)
-  if issparse(H)
+  if typeof(H) <: AbstractLinearOperator # convert A to a LinOp if A is a Matrix?
+    nnzh = 0
+    nnzj = 0
+    data = QPDataLinOp(c0, c, H, A)
+  elseif issparse(H)
     data, nnzh, nnzj = get_QPDataCOO(c0, c, H, A)
   else
     nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H)
@@ -232,6 +243,8 @@ function NLPModels.objgrad!(qp::AbstractQuadraticModel, x::AbstractVector, g::Ab
   NLPModels.increment!(qp, :neval_grad)
   if typeof(qp.data) <: QPDataCOO
     coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, g)
+  elseif typeof(qp.data) <: QPDataLinOp
+    mul!(g, qp.data.H, x)
   else
     mul!(g, Symmetric(qp.data.H, :L), x)
   end
@@ -245,6 +258,8 @@ function NLPModels.obj(qp::AbstractQuadraticModel{T, S}, x::AbstractVector) wher
   Hx = fill!(S(undef, qp.meta.nvar), zero(T))
   if typeof(qp.data) <: QPDataCOO
     coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, Hx)
+  elseif typeof(qp.data) <: QPDataLinOp
+    mul!(Hx, qp.data.H, x) 
   else
     mul!(Hx, Symmetric(qp.data.H, :L), x)
   end
@@ -255,6 +270,8 @@ function NLPModels.grad!(qp::AbstractQuadraticModel, x::AbstractVector, g::Abstr
   NLPModels.increment!(qp, :neval_grad)
   if typeof(qp.data) <: QPDataCOO
     coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, g)
+  elseif typeof(qp.data) <: QPDataLinOp
+    mul!(g, qp.data.H, x)
   else
     mul!(g, Symmetric(qp.data.H, :L), x)
   end
@@ -366,6 +383,8 @@ function NLPModels.hprod!(
   NLPModels.increment!(qp, :neval_hprod)
   if typeof(qp.data) <: QPDataCOO
     coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, v, Hv)
+  elseif typeof(qp.data) <: QPDataLinOp
+    mul!(Hv, qp.data.H, v)
   else
     mul!(Hv, Symmetric(qp.data.H, :L), v)
   end
@@ -443,17 +462,43 @@ function slackdata(data::QPDataCOO{T}, meta::NLPModelMeta{T}, ns::Int) where {T}
   )
 end
 
+function prodPermutedMinusOnes!(res, v, α, β::T, p::Vector{Int}) where T
+  res .= β == zero(T) ? zero(T) : β .* res
+  res[p] .-= α .* v
+  return res
+end
+function tprodPermutedMinusOnes!(res, v, α, β::T, p::Vector{Int}) where T
+  res .= β == zero(T) ? zero(T) : β .* res
+  res .-= @views α .* v[p]
+  return res
+end
+
+function opPermutedMinusOnes(T::DataType, ncon::Int, ns::Int, p::Vector{Int})
+  prod! = (res, v, α, β) -> prodPermutedMinusOnes!(res, v, α, β, p)
+  tprod! = (res, v, α, β) -> tprodPermutedMinusOnes!(res, v, α, β, p)
+  return LinearOperator(T, ncon, ns, false, false, prod!, tprod!)
+end
+
+function slackdata(data::QPDataLinOp{T}, meta::NLPModelMeta{T}, ns::Int) where {T}
+  return QPDataLinOp(
+    copy(data.c0),
+    [data.c; fill!(similar(data.c, ns), zero(T))],
+    BlockDiagonalOperator(data.H, opZeros(T, ns, ns)),
+    [data.A opPermutedMinusOnes(T, meta.ncon, ns, [meta.jlow; meta.jupp; meta.jrng])],
+  )
+end
+
 function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel, name = qp.meta.name * "-slack")
   qp.meta.ncon == length(qp.meta.jfix) && return qp
   nfix = length(qp.meta.jfix)
   ns = qp.meta.ncon - nfix
   T = eltype(qp.data.c)
 
-  if typeof(qp.data) <: QPDataCOO
-    data = slackdata(qp.data, qp.meta, ns)
-  elseif typeof(qp.data) <: QPDataDense # convert to QPDataCOO first
+  if typeof(qp.data) <: QPDataDense # convert to QPDataCOO first
     dataCOO, nnzj, nnzh = get_QPDataCOO(qp.data.c0, qp.data.c, qp.data.H, qp.data.A)
     data = slackdata(dataCOO, qp.meta, ns)
+  else
+    data = slackdata(qp.data, qp.meta, ns)
   end
 
   meta = NLPModelsModifiers.slack_meta(qp.meta, name = qp.meta.name)
