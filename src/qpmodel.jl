@@ -13,14 +13,15 @@ mutable struct QPDataCOO{T, S} <: AbstractQPData{T, S}
   Avals::S
 end
 
-mutable struct QPDataDense{T, S, M1 <: AbstractMatrix{T}, M2 <: AbstractMatrix{T}} <: AbstractQPData{T, S}
+mutable struct QPDataDense{T, S, M1 <: AbstractMatrix{T}, M2 <: AbstractMatrix{T}} <:
+               AbstractQPData{T, S}
   c0::T         # constant term in objective
   c::S          # linear term
   H::M1
   A::M2
 end
 
-function get_QPDataCOO(c0::T, c ::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
+function get_QPDataCOO(c0::T, c::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
   ncon, nvar = size(A)
   tril!(H)
   nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
@@ -36,7 +37,8 @@ function get_QPDataCOO(c0::T, c ::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}
   return data, nnzh, nnzj
 end
 
-get_QPDataCOO(c0::T, c :: S, H, A::AbstractMatrix{T}) where {T, S} = get_QPDataCOO(c0, c, sparse(H), A)
+get_QPDataCOO(c0::T, c::S, H, A::AbstractMatrix{T}) where {T, S} =
+  get_QPDataCOO(c0, c, sparse(H), A)
 
 abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
 
@@ -273,8 +275,8 @@ function NLPModels.hess_structure!(
   else
     nvar = qp.meta.nvar
     idx = 1
-    for j in 1:nvar
-      for i in j:nvar
+    for j = 1:nvar
+      for i = j:nvar
         rows[idx] = i
         cols[idx] = j
         idx += 1
@@ -296,8 +298,8 @@ function NLPModels.hess_coord!(
   else
     nvar = qp.meta.nvar
     idx = 1
-    for j in 1:nvar
-      for i in j:nvar
+    for j = 1:nvar
+      for i = j:nvar
         vals[idx] = (i ≥ j) ? obj_weight * qp.data.H[i, j] : zero(T)
         idx += 1
       end
@@ -324,10 +326,10 @@ function NLPModels.jac_structure!(
     cols .= qp.data.Acols
   else
     nvar, ncon = qp.meta.nvar, qp.meta.ncon
-    for j in 1:nvar
-      for i in 1:ncon
-        rows[i + (j-1) * ncon] = i
-        cols[i + (j-1) * ncon] = j
+    for j = 1:nvar
+      for i = 1:ncon
+        rows[i + (j - 1) * ncon] = i
+        cols[i + (j - 1) * ncon] = j
       end
     end
   end
