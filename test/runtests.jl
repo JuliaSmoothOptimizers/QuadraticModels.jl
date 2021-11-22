@@ -167,10 +167,14 @@ end
   nfix = length(qp.meta.jfix)
   ns = qp.meta.ncon - nfix
   x = rand(SM.meta.nvar)
+  y = rand(SM.meta.ncon)
   @test SM.meta.nvar == qp.meta.nvar + ns
   @test obj(SM, x) == obj(SMLO, x)
   @test grad(SM, x) == grad(SMLO, x)
   @test cons(SM, x) == cons(SMLO, x)
+  @test hprod(SMLO, x, x) == hprod(SMLO, x, x)
+  @test jtprod(SMLO, x, y) == jtprod(SM, x, y)
+  @test objgrad(SMLO, x) == objgrad(SM, x)
 end
 
 include("test_presolve.jl")
