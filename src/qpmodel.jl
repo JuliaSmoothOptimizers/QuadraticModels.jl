@@ -240,8 +240,6 @@ function NLPModels.objgrad!(qp::AbstractQuadraticModel, x::AbstractVector, g::Ab
   NLPModels.increment!(qp, :neval_grad)
   if typeof(qp.data) <: QPDataCOO
     coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, g)
-  elseif typeof(qp.data.H) <: AbstractLinearOperator
-    mul!(g, qp.data.H, x)
   else
     mul!(g, Symmetric(qp.data.H, :L), x)
   end
@@ -255,8 +253,6 @@ function NLPModels.obj(qp::AbstractQuadraticModel{T, S}, x::AbstractVector) wher
   Hx = fill!(S(undef, qp.meta.nvar), zero(T))
   if typeof(qp.data) <: QPDataCOO
     coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, Hx)
-  elseif typeof(qp.data.H) <: AbstractLinearOperator
-    mul!(Hx, qp.data.H, x) 
   else
     mul!(Hx, Symmetric(qp.data.H, :L), x)
   end
@@ -267,8 +263,6 @@ function NLPModels.grad!(qp::AbstractQuadraticModel, x::AbstractVector, g::Abstr
   NLPModels.increment!(qp, :neval_grad)
   if typeof(qp.data) <: QPDataCOO
     coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, x, g)
-  elseif typeof(qp.data.H) <: AbstractLinearOperator
-    mul!(g, qp.data.H, x)
   else
     mul!(g, Symmetric(qp.data.H, :L), x)
   end
@@ -380,8 +374,6 @@ function NLPModels.hprod!(
   NLPModels.increment!(qp, :neval_hprod)
   if typeof(qp.data) <: QPDataCOO
     coo_sym_prod!(qp.data.Hrows, qp.data.Hcols, qp.data.Hvals, v, Hv)
-  elseif typeof(qp.data.H) <: AbstractLinearOperator
-    mul!(Hv, qp.data.H, v)
   else
     mul!(Hv, Symmetric(qp.data.H, :L), v)
   end
