@@ -23,7 +23,7 @@ mutable struct QPData{T, S, M1 <: Union{AbstractMatrix{T}, AbstractLinearOperato
   A::M2
 end
 
-isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = (M1 <: DenseMatrix|| M2 <: DenseMatrix) ? true : false
+isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = M1 <: DenseMatrix || M2 <: DenseMatrix
 
 function get_QPDataCOO(c0::T, c ::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
   ncon, nvar = size(A)
