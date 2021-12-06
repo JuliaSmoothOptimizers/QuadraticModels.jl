@@ -41,9 +41,9 @@
 
   @test psqp.data.c == [-4.0; 1.0]
   @test psqp.data.c0 == 4.0
-  Hps = sparse(psqp.data.Hrows, psqp.data.Hcols, psqp.data.Hvals, psqp.meta.ncon, psqp.meta.nvar)
+  Hps = sparse(psqp.data.H.rows, psqp.data.H.cols, psqp.data.H.vals, psqp.meta.ncon, psqp.meta.nvar)
   @test norm(Symmetric(Hps, :L) - sparse(Hps_true)) ≤ sqrt(eps(T))
-  Aps = sparse(psqp.data.Arows, psqp.data.Acols, psqp.data.Avals, psqp.meta.ncon, psqp.meta.nvar)
+  Aps = sparse(psqp.data.A.rows, psqp.data.A.cols, psqp.data.A.vals, psqp.meta.ncon, psqp.meta.nvar)
   @test norm(Aps - sparse(Aps_true)) ≤ sqrt(eps(T))
   @test psqp.meta.lvar == lvarps_true
   @test psqp.meta.uvar == uvarps_true

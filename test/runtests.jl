@@ -44,8 +44,8 @@ function testSM(sm) # test function for a specific problem
 
   @test all(lvar_sm_true .== sm.meta.lvar)
   @test all(uvar_sm_true .== sm.meta.uvar)
-  @test all(sparse(sm.data.Arows, sm.data.Acols, sm.data.Avals, 2, 5) .== A_sm_true)
-  @test all(sparse(sm.data.Hrows, sm.data.Hcols, sm.data.Hvals, 5, 5) .== H_sm_true)
+  @test all(sparse(sm.data.A.rows, sm.data.A.cols, sm.data.A.vals, 2, 5) .== A_sm_true)
+  @test all(sparse(sm.data.H.rows, sm.data.H.cols, sm.data.H.vals, 5, 5) .== H_sm_true)
 end
 
 @testset "SlackModel" begin
