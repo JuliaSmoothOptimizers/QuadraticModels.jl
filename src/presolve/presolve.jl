@@ -1,10 +1,9 @@
 include("remove_ifix.jl")
 
-mutable struct PresolvedQuadraticModel{T, S, D <: AbstractQPData{T, S}} <:
-               AbstractQuadraticModel{T, S}
+mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
   counters::Counters
-  data::D
+  data::QPData{T, S, M1, M2}
   xrm::S
 end
 
@@ -17,7 +16,7 @@ The presolve operations currently implemented are:
 - [`remove_ifix!`](@ref)
 
 """
-function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
+function presolve(qm::QuadraticModel{T, S, M1, M2}; kwargs...) where {T <: Real, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   psqm = deepcopy(qm)
   psdata = psqm.data
   lvar, uvar = psqm.meta.lvar, psqm.meta.uvar
@@ -28,13 +27,13 @@ function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
   if length(ifix) > 0
     xrm, psdata.c0, nvarps = remove_ifix!(
       ifix,
-      psdata.Hrows,
-      psdata.Hcols,
-      psdata.Hvals,
+      psdata.H.rows,
+      psdata.H.cols,
+      psdata.H.vals,
       nvar,
-      psdata.Arows,
-      psdata.Acols,
-      psdata.Avals,
+      psdata.A.rows,
+      psdata.A.cols,
+      psdata.A.vals,
       psdata.c,
       psdata.c0,
       lvar,
@@ -48,12 +47,12 @@ function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
   end
 
   # form meta
-  nnzh = length(psdata.Hvals)
-  if !(nnzh == length(psdata.Hrows) == length(psdata.Hcols))
+  nnzh = length(psdata.H.vals)
+  if !(nnzh == length(psdata.H.rows) == length(psdata.H.cols))
     error("The length of Hrows, Hcols and Hvals must be the same")
   end
-  nnzj = length(psdata.Avals)
-  if !(nnzj == length(psdata.Arows) == length(psdata.Acols))
+  nnzj = length(psdata.A.vals)
+  if !(nnzj == length(psdata.A.rows) == length(psdata.A.cols))
     error("The length of Arows, Acols and Avals must be the same")
   end
   psmeta = NLPModelMeta{T, S}(
