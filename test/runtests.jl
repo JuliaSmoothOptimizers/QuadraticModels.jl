@@ -132,7 +132,7 @@ end
   A = sprand(T, ncon, nvar, 0.4)
   c = rand(nvar)
   lvar = fill(-Inf, nvar)
-  uvar = fill(0., nvar)
+  uvar = fill(0.0, nvar)
   lcon = rand(ncon)
   ucon = lcon .+ 100.0
   qp = QuadraticModel(

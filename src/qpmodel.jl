@@ -15,8 +15,12 @@ end
 
 isdense(data::QPDataCOO) = false
 
-mutable struct QPData{T, S, M1 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}}, 
-  M2 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}}} <: AbstractQPData{T, S}
+mutable struct QPData{
+  T,
+  S,
+  M1 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
+  M2 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
+} <: AbstractQPData{T, S}
   c0::T         # constant term in objective
   c::S          # linear term
   H::M1
@@ -25,7 +29,7 @@ end
 
 isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = M1 <: DenseMatrix || M2 <: DenseMatrix
 
-function get_QPDataCOO(c0::T, c ::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
+function get_QPDataCOO(c0::T, c::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
   ncon, nvar = size(A)
   tril!(H)
   nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
@@ -451,12 +455,12 @@ function slackdata(data::QPDataCOO{T}, meta::NLPModelMeta{T}, ns::Int) where {T}
   )
 end
 
-function prodPermutedMinusOnes!(res, v, α, β::T, p::Vector{Int}) where T
+function prodPermutedMinusOnes!(res, v, α, β::T, p::Vector{Int}) where {T}
   res .= β == zero(T) ? zero(T) : β .* res
   res[p] .-= α .* v
   return res
 end
-function tprodPermutedMinusOnes!(res, v, α, β::T, p::Vector{Int}) where T
+function tprodPermutedMinusOnes!(res, v, α, β::T, p::Vector{Int}) where {T}
   res .= β == zero(T) ? zero(T) : β .* res
   res .-= @views α .* v[p]
   return res
