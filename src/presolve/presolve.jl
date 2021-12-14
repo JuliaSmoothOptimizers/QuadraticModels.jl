@@ -68,7 +68,6 @@ function presolve(
     nnzj = nnzj,
     nnzh = nnzh,
     lin = 1:ncon,
-    nln = Int[],
     islp = (ncon == 0);
     minimize = qm.meta.minimize,
     kwargs...,
