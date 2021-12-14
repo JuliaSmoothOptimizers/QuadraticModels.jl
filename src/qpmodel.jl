@@ -140,7 +140,6 @@ function QuadraticModel(
       nnzj = nnzj,
       nnzh = nnzh,
       lin = 1:ncon,
-      nln = Int[],
       islp = (ncon == 0);
       kwargs...,
     ),
@@ -183,7 +182,6 @@ function QuadraticModel(
       nnzj = nnzj,
       nnzh = nnzh,
       lin = 1:ncon,
-      nln = Int[],
       islp = (ncon == 0);
       kwargs...,
     ),

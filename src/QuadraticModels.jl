@@ -25,9 +25,8 @@ import NLPModels:
   jac,
   jac_op,
   jprod,
-  jtprod,
-  SlackModel,
-  slack_meta
+  jtprod
+import NLPModelsModifiers: SlackModel, slack_meta
 
 export AbstractQuadraticModel, QuadraticModel, presolve, postsolve!
 

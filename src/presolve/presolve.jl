@@ -66,7 +66,6 @@ function presolve(qm::QuadraticModel{T, S}; kwargs...) where {T <: Real, S}
     nnzj = nnzj,
     nnzh = nnzh,
     lin = 1:ncon,
-    nln = Int[],
     islp = (ncon == 0);
     minimize = qm.meta.minimize,
     kwargs...,
