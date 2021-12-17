@@ -26,7 +26,12 @@ function get_QPDataCOO(c0::T, c::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T})
     I = ((i, j, A[i, j]) for i = 1:ncon, j = 1:nvar)
     nvar * ncon, getindex.(I, 1)[:], getindex.(I, 2)[:], getindex.(I, 3)[:]
   end
-  data = QPData(c0, c, SparseMatrixCOO(nvar, nvar, Hrows, Hcols, Hvals), SparseMatrixCOO(ncon, nvar, Arows, Acols, Avals))
+  data = QPData(
+    c0,
+    c,
+    SparseMatrixCOO(nvar, nvar, Hrows, Hcols, Hvals),
+    SparseMatrixCOO(ncon, nvar, Arows, Acols, Avals),
+  )
   return data, nnzh, nnzj
 end
 
@@ -130,7 +135,12 @@ function QuadraticModel(
       kwargs...,
     ),
     Counters(),
-    QPData(c0, c, SparseMatrixCOO(nvar, nvar, Hrows, Hcols, Hvals), SparseMatrixCOO(ncon, nvar, Arows, Acols, Avals)),
+    QPData(
+      c0,
+      c,
+      SparseMatrixCOO(nvar, nvar, Hrows, Hcols, Hvals),
+      SparseMatrixCOO(ncon, nvar, Arows, Acols, Avals),
+    ),
   )
 end
 
@@ -399,12 +409,22 @@ function SlackModel!(qp::QuadraticModel{T, S, M1, M2}) where {T, S, M1, M2 <: Sp
   return qp
 end
 
-function slackdata(data::QPData{T, S, M1, M2}, meta::NLPModelMeta{T}, ns::Int) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
+function slackdata(
+  data::QPData{T, S, M1, M2},
+  meta::NLPModelMeta{T},
+  ns::Int,
+) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   nvar_slack = meta.nvar + ns
   return QPData(
     copy(data.c0),
     [data.c; fill!(similar(data.c, ns), zero(T))],
-    SparseMatrixCOO(nvar_slack, nvar_slack, copy(data.H.rows), copy(data.H.cols), copy(data.H.vals)),
+    SparseMatrixCOO(
+      nvar_slack,
+      nvar_slack,
+      copy(data.H.rows),
+      copy(data.H.cols),
+      copy(data.H.vals),
+    ),
     SparseMatrixCOO(
       meta.ncon,
       nvar_slack,
