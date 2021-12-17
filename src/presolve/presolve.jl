@@ -16,7 +16,10 @@ The presolve operations currently implemented are:
 - [`remove_ifix!`](@ref)
 
 """
-function presolve(qm::QuadraticModel{T, S, M1, M2}; kwargs...) where {T <: Real, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
+function presolve(
+  qm::QuadraticModel{T, S, M1, M2};
+  kwargs...,
+) where {T <: Real, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   psqm = deepcopy(qm)
   psdata = psqm.data
   lvar, uvar = psqm.meta.lvar, psqm.meta.uvar
