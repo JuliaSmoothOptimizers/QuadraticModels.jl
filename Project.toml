@@ -14,8 +14,8 @@ SparseMatricesCOO = "fa32481b-f100-4b48-8dc8-c62f61b13870"
 
 [compat]
 LinearOperators = "2.2.2"
-NLPModels = "0.17"
-NLPModelsModifiers = "0.4"
+NLPModels = "0.17, 0.18"
+NLPModelsModifiers = "0.4, 0.5"
 Requires = "0.3, 0.4, 0.5, 1.0"
 SparseMatricesCOO = "0.1"
 julia = "^1.0.0"
