@@ -14,6 +14,13 @@ end
 
 isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = M1 <: DenseMatrix || M2 <: DenseMatrix
 
+function convertQPData_toCOO(data::QPData{T, S, M1, M2}) where {T, S, M1 <: AbstractMatrix, M2 <: AbstractMatrix}
+  (M1 <: SparseMatrixCOO) && (M2 <: SparseMatrixCOO) && return data
+  HCOO = (M1 <: SparseMatrixCOO) ? data.H : SparseMatrixCOO(data.H)
+  ACOO = (M2 <: SparseMatrixCOO) ? data.A : SparseMatrixCOO(data.A)
+  return QPData(data.c0, data.c, HCOO, ACOO)
+end
+
 function get_QPDataCOO(c0::T, c::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
   ncon, nvar = size(A)
   tril!(H)
@@ -152,6 +159,7 @@ function QuadraticModel(
   lvar::S = fill!(S(undef, length(c)), T(-Inf)),
   uvar::S = fill!(S(undef, length(c)), T(Inf)),
   c0::T = zero(T),
+  coo_matrices = true,
   kwargs...,
 ) where {T, S}
   ncon, nvar = size(A)
@@ -159,13 +167,28 @@ function QuadraticModel(
     nnzh = 0
     nnzj = 0
     data = QPData(c0, c, H, A)
-  elseif issparse(H)
-    data, nnzh, nnzj = get_QPDataCOO(c0, c, H, A)
   else
-    nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H)
-    nnzj = nnz(A)
-    data = QPData(c0, c, H, A)
+    if coo_matrices
+      if typeof(H) <: Symmetric && !(typeof(H.data) <: SparseMatrixCOO)
+        tril!(H.data)
+        HCOO = SparseMatrixCOO(H.data)
+      elseif !(typeof(H) <: SparseMatrixCOO)
+        tril!(H)
+        HCOO = SparseMatrixCOO(H)
+      else
+        HCOO = H
+      end
+      ACOO = !(typeof(A) <: SparseMatrixCOO) ? SparseMatrixCOO(A) : ACOO = A
+      nnzh = nnz(HCOO)
+      nnzj = nnz(ACOO)
+      data = QPData(c0, c, HCOO, ACOO)
+    else
+      nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H)
+      nnzj = nnz(A)
+      data = QPData(c0, c, H, A)
+    end
   end
+
   QuadraticModel(
     NLPModelMeta(
       nvar,
@@ -466,7 +489,7 @@ function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel, name = qp.met
   T = eltype(qp.data.c)
 
   if isdense(qp.data) # convert to QPDataCOO first
-    dataCOO, nnzj, nnzh = get_QPDataCOO(qp.data.c0, qp.data.c, qp.data.H, qp.data.A)
+    dataCOO = convertQPData_toCOO(qp.data)
     data = slackdata(dataCOO, qp.meta, ns)
   else
     data = slackdata(qp.data, qp.meta, ns)
