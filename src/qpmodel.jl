@@ -21,40 +21,21 @@ function convertQPData_toCOO(data::QPData{T, S, M1, M2}) where {T, S, M1 <: Abst
   return QPData(data.c0, data.c, HCOO, ACOO)
 end
 
-function get_QPDataCOO(c0::T, c::S, H::SparseMatrixCSC{T}, A::AbstractMatrix{T}) where {T, S}
-  ncon, nvar = size(A)
-  tril!(H)
-  nnzh, Hrows, Hcols, Hvals = nnz(H), findnz(H)...
-  nnzj, Arows, Acols, Avals = if ncon == 0
-    0, Int[], Int[], S(undef, 0)
-  elseif issparse(A)
-    nnz(A), findnz(A)...
-  else
-    I = ((i, j, A[i, j]) for i = 1:ncon, j = 1:nvar)
-    nvar * ncon, getindex.(I, 1)[:], getindex.(I, 2)[:], getindex.(I, 3)[:]
-  end
-  data = QPData(
-    c0,
-    c,
-    SparseMatrixCOO(nvar, nvar, Hrows, Hcols, Hvals),
-    SparseMatrixCOO(ncon, nvar, Arows, Acols, Avals),
-  )
-  return data, nnzh, nnzj
-end
-
-get_QPDataCOO(c0::T, c::S, H, A::AbstractMatrix{T}) where {T, S} =
-  get_QPDataCOO(c0, c, sparse(H), A)
-
 abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
 
 """
     qp = QuadraticModel(c, Hrows, Hcols, Hvals; Arows = Arows, Acols = Acols, Avals = Avals, 
-                        lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar)
+                        lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar, sortcols = false)
 
-    qp = QuadraticModel(c, H; A = A, lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar)
+    qp = QuadraticModel(c, H; A = A, lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar, coo_matrices = true)
 
 Create a Quadratic model ``min ~\\tfrac{1}{2} x^T Q x + c^T x + c_0`` with optional bounds
 `lvar ≦ x ≦ uvar` and optional linear constraints `lcon ≦ Ax ≦ ucon`.
+
+With the first constructor, if `sortcols = true`, then `Hcols` and `Acols` are sorted in ascending order 
+(`Hrows`, `Hvals` and `Arows`, `Avals` are then sorted accordingly).
+With the second constructor, if `coo_matrices = true`, `H` and/or `A`  will be converted to SparseMatricesCOO
+(this will be ignored if they already are SparseMatricesCOO).
 
 You can also use [`QPSReader.jl`](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) to
 create a Quadratic model from a QPS file:
@@ -285,20 +266,10 @@ function NLPModels.hess_structure!(
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 )
-  if typeof(qp.data.H) <: SparseMatrixCOO
-    rows .= qp.data.H.rows
-    cols .= qp.data.H.cols
-  else
-    nvar = qp.meta.nvar
-    idx = 1
-    for j = 1:nvar
-      for i = j:nvar
-        rows[idx] = i
-        cols[idx] = j
-        idx += 1
-      end
-    end
-  end
+  typeof(qp.data.H) <: SparseMatrixCOO || 
+    error("hess_structure! should be used only if H is a SparseMatrixCOO")
+  rows .= qp.data.H.rows
+  cols .= qp.data.H.cols
   return rows, cols
 end
 
@@ -308,19 +279,10 @@ function NLPModels.hess_coord!(
   vals::AbstractVector{T};
   obj_weight::Real = one(eltype(x)),
 ) where {T}
+  typeof(qp.data.H) <: SparseMatrixCOO ||
+    error("hess_coord! should be used only if H is a SparseMatrixCOO")
   NLPModels.increment!(qp, :neval_hess)
-  if typeof(qp.data.H) <: SparseMatrixCOO
-    vals .= obj_weight * qp.data.H.vals
-  else
-    nvar = qp.meta.nvar
-    idx = 1
-    for j = 1:nvar
-      for i = j:nvar
-        vals[idx] = (i ≥ j) ? obj_weight * qp.data.H[i, j] : zero(T)
-        idx += 1
-      end
-    end
-  end
+  vals .= obj_weight * qp.data.H.vals
   return vals
 end
 
@@ -337,28 +299,18 @@ function NLPModels.jac_structure!(
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 )
-  if typeof(qp.data.A) <: SparseMatrixCOO
-    rows .= qp.data.A.rows
-    cols .= qp.data.A.cols
-  else
-    nvar, ncon = qp.meta.nvar, qp.meta.ncon
-    for j = 1:nvar
-      for i = 1:ncon
-        rows[i + (j - 1) * ncon] = i
-        cols[i + (j - 1) * ncon] = j
-      end
-    end
-  end
+  typeof(qp.data.A) <: SparseMatrixCOO ||
+    error("jac_structure! should be used only if A is a SparseMatrixCOO")
+  rows .= qp.data.A.rows
+  cols .= qp.data.A.cols
   return rows, cols
 end
 
 function NLPModels.jac_coord!(qp::QuadraticModel, x::AbstractVector, vals::AbstractVector)
+  typeof(qp.data.A) <: SparseMatrixCOO ||
+    error("jac_coord! should be used only if A is a SparseMatrixCOO")
   NLPModels.increment!(qp, :neval_jac)
-  if typeof(qp.data.A) <: SparseMatrixCOO
-    vals .= qp.data.A.vals
-  else
-    vals .= @views qp.data.A[:]
-  end
+  vals .= qp.data.A.vals
   return vals
 end
 

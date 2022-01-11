@@ -79,10 +79,27 @@ end
 
   SlackModel!(qp)
   testSM(qp)
+end
+
+@testset "dense QP" begin
+  H = [
+    6.0 2.0 1.0
+    2.0 5.0 2.0
+    1.0 2.0 4.0
+  ]
+  c = [-8.0; -3; -3]
+  A = [
+    1.0 0.0 1.0
+    0.0 2.0 1.0
+  ]
+  b = [0.0; 3]
+  l = [0.0; 0; 0]
+  u = [Inf; Inf; Inf]
+  T = eltype(c)
 
   qpdense = QuadraticModel(
     c,
-    H,
+    tril(H),
     A = A,
     lcon = [-3.0; -4.0],
     ucon = [-2.0; Inf],
@@ -90,7 +107,14 @@ end
     uvar = u,
     c0 = 0.0,
     name = "QM1",
+    coo_matrices = false,
   )
+
+  @test_throws Exception hess_structure(qpdense)
+  @test_throws Exception hess_coord(qpdense)
+  @test_throws Exception jac_structure(qpdense)
+  @test_throws Exception jac_coord(qpdense)
+
   smdense = SlackModel(qpdense)
   testSM(smdense)
 end
@@ -158,9 +182,9 @@ end
     name = "QMLO",
   )
   x = ones(10)
-  @test obj(qp, x) == obj(qpLO, x)
-  @test grad(qp, x) == grad(qpLO, x)
-  @test cons(qp, x) == cons(qpLO, x)
+  @test obj(qp, x) ≈ obj(qpLO, x)
+  @test grad(qp, x) ≈ grad(qpLO, x)
+  @test cons(qp, x) ≈ cons(qpLO, x)
 
   SM = SlackModel(qp)
   SMLO = SlackModel(qpLO)
@@ -169,11 +193,11 @@ end
   x = rand(SM.meta.nvar)
   y = rand(SM.meta.ncon)
   @test SM.meta.nvar == qp.meta.nvar + ns
-  @test obj(SM, x) == obj(SMLO, x)
+  @test obj(SM, x) ≈ obj(SMLO, x)
   @test grad(SM, x) ≈ grad(SMLO, x)
-  @test cons(SM, x) == cons(SMLO, x)
-  @test hprod(SMLO, x, x) == hprod(SMLO, x, x)
-  @test jtprod(SMLO, x, y) == jtprod(SM, x, y)
+  @test cons(SM, x) ≈ cons(SMLO, x)
+  @test hprod(SMLO, x, x) ≈ hprod(SMLO, x, x)
+  @test jtprod(SMLO, x, y) ≈ jtprod(SM, x, y)
   @test objgrad(SMLO, x)[1] ≈ objgrad(SM, x)[1]
   @test objgrad(SMLO, x)[2] ≈ objgrad(SM, x)[2]
 end
