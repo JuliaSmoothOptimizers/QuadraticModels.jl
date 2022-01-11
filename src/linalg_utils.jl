@@ -7,3 +7,4 @@ function SparseArrays.nnz(M::Symmetric{T, <:DenseMatrix{T}}) where {T}
   n = size(M, 1)
   return n * (n + 1) / 2
 end
+SparseArrays.nnz(M::Symmetric{T, <:AbstractSparseMatrix{T}}) where {T} = nnz(M.data)

@@ -128,7 +128,7 @@ end
 @testset "LinearOperators" begin
   nvar, ncon = 10, 7
   T = Float64
-  H = Symmetric(tril!(sprand(T, nvar, nvar, 0.3)))
+  H = Symmetric(tril!(sprand(T, nvar, nvar, 0.3)), :L)
   A = sprand(T, ncon, nvar, 0.4)
   c = rand(nvar)
   lvar = fill(-Inf, nvar)
