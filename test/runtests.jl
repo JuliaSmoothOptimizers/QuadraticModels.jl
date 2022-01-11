@@ -170,11 +170,12 @@ end
   y = rand(SM.meta.ncon)
   @test SM.meta.nvar == qp.meta.nvar + ns
   @test obj(SM, x) == obj(SMLO, x)
-  @test grad(SM, x) == grad(SMLO, x)
+  @test grad(SM, x) ≈ grad(SMLO, x)
   @test cons(SM, x) == cons(SMLO, x)
   @test hprod(SMLO, x, x) == hprod(SMLO, x, x)
   @test jtprod(SMLO, x, y) == jtprod(SM, x, y)
-  @test objgrad(SMLO, x) == objgrad(SM, x)
+  @test objgrad(SMLO, x)[1] ≈ objgrad(SM, x)[1]
+  @test objgrad(SMLO, x)[2] ≈ objgrad(SM, x)[2]
 end
 
 include("test_presolve.jl")
