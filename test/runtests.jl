@@ -111,12 +111,7 @@ end
     name = "QM1",
     coo_matrices = false,
   )
-
-  @test_throws Exception hess_structure(qpdense)
-  @test_throws Exception hess_coord(qpdense)
-  @test_throws Exception jac_structure(qpdense)
-  @test_throws Exception jac_coord(qpdense)
-
+  
   smdense = SlackModel(qpdense)
   testSM(smdense)
 end

@@ -14,12 +14,12 @@ end
 
 isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = M1 <: DenseMatrix || M2 <: DenseMatrix
 
-function convertQPData_toCOO(data::QPData{T, S, M1, M2}) where {T, S, M1 <: AbstractMatrix, M2 <: AbstractMatrix}
-  (M1 <: SparseMatrixCOO) && (M2 <: SparseMatrixCOO) && return data
+function Base.convert(::Type{QPData{T, S, MCOO, MCOO}}, data::QPData{T, S, M1, M2}) where {T, S, M1 <: AbstractMatrix, M2 <: AbstractMatrix, MCOO <: SparseMatrixCOO{T}}
   HCOO = (M1 <: SparseMatrixCOO) ? data.H : SparseMatrixCOO(data.H)
   ACOO = (M2 <: SparseMatrixCOO) ? data.A : SparseMatrixCOO(data.A)
   return QPData(data.c0, data.c, HCOO, ACOO)
 end
+Base.convert(::Type{QPData{T, S, MCOO, MCOO}}, data::QPData{T, S, M1, M2}) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO, MCOO <: SparseMatrixCOO{T}} = data
 
 abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
 
@@ -262,25 +262,21 @@ end
 # TODO: Better hess_op
 
 function NLPModels.hess_structure!(
-  qp::QuadraticModel,
+  qp::QuadraticModel{T, S, M1},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
-)
-  typeof(qp.data.H) <: SparseMatrixCOO || 
-    error("hess_structure! should be used only if H is a SparseMatrixCOO")
+) where {T, S, M1 <: SparseMatrixCOO}
   rows .= qp.data.H.rows
   cols .= qp.data.H.cols
   return rows, cols
 end
 
 function NLPModels.hess_coord!(
-  qp::QuadraticModel{T},
+  qp::QuadraticModel{T, S, M1},
   x::AbstractVector{T},
   vals::AbstractVector{T};
   obj_weight::Real = one(eltype(x)),
-) where {T}
-  typeof(qp.data.H) <: SparseMatrixCOO ||
-    error("hess_coord! should be used only if H is a SparseMatrixCOO")
+) where {T, S, M1 <: SparseMatrixCOO}
   NLPModels.increment!(qp, :neval_hess)
   vals .= obj_weight * qp.data.H.vals
   return vals
@@ -295,20 +291,20 @@ NLPModels.hess_coord!(
 ) = hess_coord!(qp, x, vals, obj_weight = obj_weight)
 
 function NLPModels.jac_structure!(
-  qp::QuadraticModel,
+  qp::QuadraticModel{T, S, M1, M2},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
-)
-  typeof(qp.data.A) <: SparseMatrixCOO ||
-    error("jac_structure! should be used only if A is a SparseMatrixCOO")
+) where {T, S, M1, M2 <: SparseMatrixCOO}
   rows .= qp.data.A.rows
   cols .= qp.data.A.cols
   return rows, cols
 end
 
-function NLPModels.jac_coord!(qp::QuadraticModel, x::AbstractVector, vals::AbstractVector)
-  typeof(qp.data.A) <: SparseMatrixCOO ||
-    error("jac_coord! should be used only if A is a SparseMatrixCOO")
+function NLPModels.jac_coord!(
+  qp::QuadraticModel{T, S, M1, M2},
+  x::AbstractVector,
+  vals::AbstractVector
+  ) where {T, S, M1, M2 <: SparseMatrixCOO}
   NLPModels.increment!(qp, :neval_jac)
   vals .= qp.data.A.vals
   return vals
@@ -434,14 +430,13 @@ function slackdata(data::QPData{T}, meta::NLPModelMeta{T}, ns::Int) where {T}
   )
 end
 
-function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel, name = qp.meta.name * "-slack")
+function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel{T, S}, name = qp.meta.name * "-slack") where{T, S}
   qp.meta.ncon == length(qp.meta.jfix) && return qp
   nfix = length(qp.meta.jfix)
   ns = qp.meta.ncon - nfix
-  T = eltype(qp.data.c)
 
   if isdense(qp.data) # convert to QPDataCOO first
-    dataCOO = convertQPData_toCOO(qp.data)
+    dataCOO = convert(QPData{T, S, SparseMatrixCOO{T, Int}, SparseMatrixCOO{T, Int}}, qp.data)
     data = slackdata(dataCOO, qp.meta, ns)
   else
     data = slackdata(qp.data, qp.meta, ns)
