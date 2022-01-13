@@ -84,7 +84,9 @@ function remove_ifix!(
       end
       k += 1
     end
-
+    Hrows[Hwritepos: end] .= 0
+    Hcols[Hwritepos: end] .= 0
+    
     # remove ifix in A cols
     Awritepos = 1
     currentAn = nvar - idxfix + 1  # remove rows if uplo == :U 
