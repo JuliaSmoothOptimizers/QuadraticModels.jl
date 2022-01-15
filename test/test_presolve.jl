@@ -15,8 +15,8 @@
   T = eltype(c)
   qp = QuadraticModel(
     c,
-    sparse(H),
-    A = A,
+    SparseMatrixCOO(tril(H)),
+    A = SparseMatrixCOO(A),
     lcon = [-3.0; -4.0],
     ucon = [-2.0; Inf],
     lvar = l,
