@@ -398,7 +398,7 @@ function NLPModels.jac_coord!(
   vals::AbstractVector
   ) where {T, S, M1, M2 <: SparseMatrixCSC}
   NLPModels.increment!(qp, :neval_jac)
-  fill_coord!(qp.data.H, vals, one(T))
+  fill_coord!(qp.data.A, vals, one(T))
   return vals
 end
 

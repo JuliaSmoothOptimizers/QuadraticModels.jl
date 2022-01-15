@@ -205,4 +205,46 @@ end
   @test objgrad(SMLO, x)[2] ≈ objgrad(SM, x)[2]
 end
 
+@testset "struct and coord CSC" begin
+  H = [
+    6.0 2.0 1.0
+    2.0 5.0 2.0
+    1.0 2.0 4.0
+  ]
+  c = [-8.0; -3; -3]
+  A = [
+    1.0 0.0 1.0
+    0.0 2.0 1.0
+  ]
+  b = [0.0; 3]
+  l = [0.0; 0; 0]
+  u = [Inf; Inf; Inf]
+  T = eltype(c)
+  qp = QuadraticModel(
+    c,
+    tril(sparse(H)),
+    A = sparse(A),
+    lcon = b,
+    ucon = b,
+    lvar = l,
+    uvar = u,
+    c0 = 0.0,
+    name = "QM",
+  )
+
+  x = zeros(3)
+  rowsH, colsH = hess_structure(qp)
+  valsH = hess_coord(qp, x)
+  rowsHtrue, colsHtrue, valsHtrue = findnz(tril(sparse(H)))
+  @test rowsH == rowsHtrue
+  @test colsH == colsHtrue
+  @test valsH == valsHtrue
+  rowsA, colsA = jac_structure(qp)
+  valsA = jac_coord(qp, x)
+  rowsAtrue, colsAtrue, valsAtrue = findnz(sparse(A))
+  @test rowsA == rowsAtrue
+  @test colsA == colsAtrue
+  @test valsA == valsAtrue
+end
+
 include("test_presolve.jl")
