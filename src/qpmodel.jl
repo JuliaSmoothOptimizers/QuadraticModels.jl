@@ -29,13 +29,12 @@ abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
 
     qp = QuadraticModel(c, H; A = A, lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar, coo_matrices = true)
 
-Create a Quadratic model ``min ~\\tfrac{1}{2} x^T Q x + c^T x + c_0`` with optional bounds
+Create a Quadratic model ``min ~\\tfrac{1}{2} x^T H x + c^T x + c_0`` with optional bounds
 `lvar ≦ x ≦ uvar` and optional linear constraints `lcon ≦ Ax ≦ ucon`.
+The user should only give the lower triangle of `H` to the `QuadraticModel` constructor.
 
 With the first constructor, if `sortcols = true`, then `Hcols` and `Acols` are sorted in ascending order 
 (`Hrows`, `Hvals` and `Arows`, `Avals` are then sorted accordingly).
-With the second constructor, if `coo_matrices = true`, `H` and/or `A`  will be converted to SparseMatricesCOO
-(this will be ignored if they already are SparseMatricesCOO).
 
 You can also use [`QPSReader.jl`](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) to
 create a Quadratic model from a QPS file:
@@ -63,6 +62,11 @@ mutable struct QuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
   counters::Counters
   data::QPData{T, S, M1, M2}
+end
+
+function Base.convert(::Type{QuadraticModel{T, S, Mconv, Mconv}}, qm::QuadraticModel{T, S, M1, M2}) where {T, S, M1 <: AbstractMatrix, M2 <: AbstractMatrix, Mconv}
+  data_conv = convert(QPData{T, S, Mconv, Mconv}, qm.data)
+  return QuadraticModel(qm.meta, qm.counters, data_conv)
 end
 
 function QuadraticModel(
@@ -140,7 +144,6 @@ function QuadraticModel(
   lvar::S = fill!(S(undef, length(c)), T(-Inf)),
   uvar::S = fill!(S(undef, length(c)), T(Inf)),
   c0::T = zero(T),
-  coo_matrices = true,
   kwargs...,
 ) where {T, S}
   ncon, nvar = size(A)
@@ -149,25 +152,9 @@ function QuadraticModel(
     nnzj = 0
     data = QPData(c0, c, H, A)
   else
-    if coo_matrices
-      if typeof(H) <: Symmetric && !(typeof(H.data) <: SparseMatrixCOO)
-        tril!(H.data)
-        HCOO = SparseMatrixCOO(H.data)
-      elseif !(typeof(H) <: SparseMatrixCOO)
-        tril!(H)
-        HCOO = SparseMatrixCOO(H)
-      else
-        HCOO = H
-      end
-      ACOO = !(typeof(A) <: SparseMatrixCOO) ? SparseMatrixCOO(A) : ACOO = A
-      nnzh = nnz(HCOO)
-      nnzj = nnz(ACOO)
-      data = QPData(c0, c, HCOO, ACOO)
-    else
-      nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H)
-      nnzj = nnz(A)
-      data = QPData(c0, c, H, A)
-    end
+    nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H)
+    nnzj = nnz(A)
+    data = typeof(H) <: Symmetric ? QPData(c0, c, H.data, A) : QPData(c0, c, H, A)
   end
 
   QuadraticModel(
@@ -271,6 +258,48 @@ function NLPModels.hess_structure!(
   return rows, cols
 end
 
+function fill_structure!(S::SparseMatrixCSC, rows, cols)
+  count = 1
+  @inbounds for col = 1 : size(S, 2), k = S.colptr[col] : (S.colptr[col+1]-1)
+      rows[count] = S.rowval[k]
+      cols[count] = col
+      count += 1
+  end
+end
+
+function fill_coord!(S::SparseMatrixCSC, vals, obj_weight)
+  count = 1
+  @inbounds for col = 1 : size(S, 2), k = S.colptr[col] : (S.colptr[col+1]-1)
+      vals[count] = obj_weight * S.nzval[k]
+      count += 1
+  end
+end
+
+function NLPModels.hess_structure!(
+  qp::QuadraticModel{T, S, M1},
+  rows::AbstractVector{<:Integer},
+  cols::AbstractVector{<:Integer},
+) where {T, S, M1 <: SparseMatrixCSC}
+  fill_structure!(qp.data.H, rows, cols)
+  return rows, cols
+end
+
+function NLPModels.hess_structure!(
+  qp::QuadraticModel{T, S, M1},
+  rows::AbstractVector{<:Integer},
+  cols::AbstractVector{<:Integer},
+) where {T, S, M1 <: Matrix}
+  count = 1
+  for j=1:qp.meta.nvar
+    for i=j:qp.meta.nvar
+      rows[count] = i
+      cols[count] = j
+      count += 1
+    end
+  end
+  return rows, cols
+end
+
 function NLPModels.hess_coord!(
   qp::QuadraticModel{T, S, M1},
   x::AbstractVector{T},
@@ -279,6 +308,34 @@ function NLPModels.hess_coord!(
 ) where {T, S, M1 <: SparseMatrixCOO}
   NLPModels.increment!(qp, :neval_hess)
   vals .= obj_weight * qp.data.H.vals
+  return vals
+end
+
+function NLPModels.hess_coord!(
+  qp::QuadraticModel{T, S, M1},
+  x::AbstractVector{T},
+  vals::AbstractVector{T};
+  obj_weight::Real = one(eltype(x)),
+) where {T, S, M1 <: SparseMatrixCSC}
+  NLPModels.increment!(qp, :neval_hess)
+  fill_coord!(qp.data.H, vals, obj_weight)
+  return vals
+end
+
+function NLPModels.hess_coord!(
+  qp::QuadraticModel{T, S, M1},
+  x::AbstractVector{T},
+  vals::AbstractVector{T};
+  obj_weight::Real = one(eltype(x)),
+) where {T, S, M1 <: Matrix}
+  NLPModels.increment!(qp, :neval_hess)
+  count = 1
+  for j=1:qp.meta.nvar
+    for i=j:qp.meta.nvar
+      vals[count] = obj_weight * qp.data.H[i,j]
+      count += 1
+    end
+  end
   return vals
 end
 
@@ -300,6 +357,31 @@ function NLPModels.jac_structure!(
   return rows, cols
 end
 
+function NLPModels.jac_structure!(
+  qp::QuadraticModel{T, S, M1, M2},
+  rows::AbstractVector{<:Integer},
+  cols::AbstractVector{<:Integer},
+) where {T, S, M1, M2 <: SparseMatrixCSC}
+  fill_structure!(qp.data.A, rows, cols)
+  return rows, cols
+end
+
+function NLPModels.jac_structure!(
+  qp::QuadraticModel{T, S, M1, M2},
+  rows::AbstractVector{<:Integer},
+  cols::AbstractVector{<:Integer},
+) where {T, S, M1, M2 <: DenseMatrix}
+  count = 1
+  for j=1:qp.meta.nvar
+    for i=1:qp.meta.ncon
+      rows[count] = i
+      cols[count] = j
+      count += 1
+    end
+  end
+  return rows, cols
+end
+
 function NLPModels.jac_coord!(
   qp::QuadraticModel{T, S, M1, M2},
   x::AbstractVector,
@@ -307,6 +389,32 @@ function NLPModels.jac_coord!(
   ) where {T, S, M1, M2 <: SparseMatrixCOO}
   NLPModels.increment!(qp, :neval_jac)
   vals .= qp.data.A.vals
+  return vals
+end
+
+function NLPModels.jac_coord!(
+  qp::QuadraticModel{T, S, M1, M2},
+  x::AbstractVector,
+  vals::AbstractVector
+  ) where {T, S, M1, M2 <: SparseMatrixCSC}
+  NLPModels.increment!(qp, :neval_jac)
+  fill_coord!(qp.data.H, vals, one(T))
+  return vals
+end
+
+function NLPModels.jac_coord!(
+  qp::QuadraticModel{T, S, M1, M2},
+  x::AbstractVector,
+  vals::AbstractVector
+  ) where {T, S, M1, M2 <: DenseMatrix}
+  NLPModels.increment!(qp, :neval_jac)
+  count = 1
+  for j=1:qp.meta.nvar
+    for i=1:qp.meta.ncon
+      vals[count] = qp.data.A[i, j]
+      count += 1
+    end
+  end
   return vals
 end
 

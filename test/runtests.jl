@@ -46,8 +46,8 @@ function testSM(sm) # test function for a specific problem
 
   @test all(lvar_sm_true .== sm.meta.lvar)
   @test all(uvar_sm_true .== sm.meta.uvar)
-  @test all(sparse(sm.data.A.rows, sm.data.A.cols, sm.data.A.vals, 2, 5) .== A_sm_true)
-  @test all(sparse(sm.data.H.rows, sm.data.H.cols, sm.data.H.vals, 5, 5) .== H_sm_true)
+  @test all(sparse(sm.data.A.rows, sm.data.A.cols, sm.data.A.vals, 2, 5) .≈ A_sm_true)
+  @test all(sparse(sm.data.H.rows, sm.data.H.cols, sm.data.H.vals, 5, 5) .≈ H_sm_true)
 end
 
 @testset "SlackModel" begin
@@ -67,8 +67,8 @@ end
   T = eltype(c)
   qp = QuadraticModel(
     c,
-    sparse(H),
-    A = A,
+    SparseMatrixCOO(tril(H)),
+    A = SparseMatrixCOO(A),
     lcon = [-3.0; -4.0],
     ucon = [-2.0; Inf],
     lvar = l,
@@ -83,7 +83,7 @@ end
   testSM(qp)
 end
 
-@testset "dense QP" begin
+@testset "dense QP, convert" begin
   H = [
     6.0 2.0 1.0
     2.0 5.0 2.0
@@ -109,11 +109,17 @@ end
     uvar = u,
     c0 = 0.0,
     name = "QM1",
-    coo_matrices = false,
   )
   
   smdense = SlackModel(qpdense)
   testSM(smdense)
+
+  qpcoo = convert(
+    QuadraticModel{T, Vector{T}, SparseMatrixCOO{T, Int}, SparseMatrixCOO{T, Int}},
+    qpdense
+  )
+  @test typeof(qpcoo.data.H) <: SparseMatrixCOO
+  @test typeof(qpcoo.data.A) <: SparseMatrixCOO
 end
 
 @testset "sort cols COO" begin
@@ -149,7 +155,7 @@ end
 @testset "LinearOperators" begin
   nvar, ncon = 10, 7
   T = Float64
-  H = Symmetric(tril!(sprand(T, nvar, nvar, 0.3)), :L)
+  H = Symmetric(tril(sprand(T, nvar, nvar, 0.3)), :L)
   A = sprand(T, ncon, nvar, 0.4)
   c = rand(nvar)
   lvar = fill(-Inf, nvar)
@@ -159,7 +165,7 @@ end
   qp = QuadraticModel(
     c,
     SparseMatrixCOO(H.data),
-    A = A,
+    A = SparseMatrixCOO(A),
     lcon = lcon,
     ucon = ucon,
     lvar = lvar,
