@@ -27,7 +27,7 @@ abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
     qp = QuadraticModel(c, Hrows, Hcols, Hvals; Arows = Arows, Acols = Acols, Avals = Avals, 
                         lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar, sortcols = false)
 
-    qp = QuadraticModel(c, H; A = A, lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar, coo_matrices = true)
+    qp = QuadraticModel(c, H; A = A, lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar)
 
 Create a Quadratic model ``min ~\\tfrac{1}{2} x^T H x + c^T x + c_0`` with optional bounds
 `lvar ≦ x ≦ uvar` and optional linear constraints `lcon ≦ Ax ≦ ucon`.
@@ -370,7 +370,7 @@ function NLPModels.jac_structure!(
   qp::QuadraticModel{T, S, M1, M2},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
-) where {T, S, M1, M2 <: DenseMatrix}
+) where {T, S, M1, M2 <: Matrix}
   count = 1
   for j=1:qp.meta.nvar
     for i=1:qp.meta.ncon
@@ -406,7 +406,7 @@ function NLPModels.jac_coord!(
   qp::QuadraticModel{T, S, M1, M2},
   x::AbstractVector,
   vals::AbstractVector
-  ) where {T, S, M1, M2 <: DenseMatrix}
+  ) where {T, S, M1, M2 <: Matrix}
   NLPModels.increment!(qp, :neval_jac)
   count = 1
   for j=1:qp.meta.nvar
