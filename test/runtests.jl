@@ -3,7 +3,13 @@ using LinearAlgebra, Printf, SparseArrays, Test
 
 # our packages
 using ADNLPModels,
-  LinearOperators, NLPModels, NLPModelsModifiers, NLPModelsTest, QPSReader, QuadraticModels, SparseMatricesCOO
+  LinearOperators,
+  NLPModels,
+  NLPModelsModifiers,
+  NLPModelsTest,
+  QPSReader,
+  QuadraticModels,
+  SparseMatricesCOO
 
 @testset "test utils" begin
   A = rand(10, 10)
@@ -12,7 +18,7 @@ using ADNLPModels,
   @test nnz(Symmetric(A)) == 55
   v1, v2 = rand(10), rand(9)
   @test nnz(SymTridiagonal(v1, v2)) == 19
-  Asp = sparse([1. 0. 0. ; 1. 0. 0. ; 0. 3. 2.])
+  Asp = sparse([1.0 0.0 0.0; 1.0 0.0 0.0; 0.0 3.0 2.0])
   @test nnz(Symmetric(Asp, :L)) == 4
 end
 
@@ -110,14 +116,12 @@ end
     c0 = 0.0,
     name = "QM1",
   )
-  
+
   smdense = SlackModel(qpdense)
   testSM(smdense)
 
-  qpcoo = convert(
-    QuadraticModel{T, Vector{T}, SparseMatrixCOO{T, Int}, SparseMatrixCOO{T, Int}},
-    qpdense
-  )
+  qpcoo =
+    convert(QuadraticModel{T, Vector{T}, SparseMatrixCOO{T, Int}, SparseMatrixCOO{T, Int}}, qpdense)
   @test typeof(qpcoo.data.H) <: SparseMatrixCOO
   @test typeof(qpcoo.data.A) <: SparseMatrixCOO
 end

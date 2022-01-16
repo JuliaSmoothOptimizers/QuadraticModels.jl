@@ -14,12 +14,18 @@ end
 
 isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = M1 <: DenseMatrix || M2 <: DenseMatrix
 
-function Base.convert(::Type{QPData{T, S, MCOO, MCOO}}, data::QPData{T, S, M1, M2}) where {T, S, M1 <: AbstractMatrix, M2 <: AbstractMatrix, MCOO <: SparseMatrixCOO{T}}
+function Base.convert(
+  ::Type{QPData{T, S, MCOO, MCOO}},
+  data::QPData{T, S, M1, M2},
+) where {T, S, M1 <: AbstractMatrix, M2 <: AbstractMatrix, MCOO <: SparseMatrixCOO{T}}
   HCOO = (M1 <: SparseMatrixCOO) ? data.H : SparseMatrixCOO(data.H)
   ACOO = (M2 <: SparseMatrixCOO) ? data.A : SparseMatrixCOO(data.A)
   return QPData(data.c0, data.c, HCOO, ACOO)
 end
-Base.convert(::Type{QPData{T, S, MCOO, MCOO}}, data::QPData{T, S, M1, M2}) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO, MCOO <: SparseMatrixCOO{T}} = data
+Base.convert(
+  ::Type{QPData{T, S, MCOO, MCOO}},
+  data::QPData{T, S, M1, M2},
+) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO, MCOO <: SparseMatrixCOO{T}} = data
 
 abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
 
@@ -64,7 +70,10 @@ mutable struct QuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
   data::QPData{T, S, M1, M2}
 end
 
-function Base.convert(::Type{QuadraticModel{T, S, Mconv, Mconv}}, qm::QuadraticModel{T, S, M1, M2}) where {T, S, M1 <: AbstractMatrix, M2 <: AbstractMatrix, Mconv}
+function Base.convert(
+  ::Type{QuadraticModel{T, S, Mconv, Mconv}},
+  qm::QuadraticModel{T, S, M1, M2},
+) where {T, S, M1 <: AbstractMatrix, M2 <: AbstractMatrix, Mconv}
   data_conv = convert(QPData{T, S, Mconv, Mconv}, qm.data)
   return QuadraticModel(qm.meta, qm.counters, data_conv)
 end
@@ -260,18 +269,18 @@ end
 
 function fill_structure!(S::SparseMatrixCSC, rows, cols)
   count = 1
-  @inbounds for col = 1 : size(S, 2), k = S.colptr[col] : (S.colptr[col+1]-1)
-      rows[count] = S.rowval[k]
-      cols[count] = col
-      count += 1
+  @inbounds for col = 1:size(S, 2), k = S.colptr[col]:(S.colptr[col + 1] - 1)
+    rows[count] = S.rowval[k]
+    cols[count] = col
+    count += 1
   end
 end
 
 function fill_coord!(S::SparseMatrixCSC, vals, obj_weight)
   count = 1
-  @inbounds for col = 1 : size(S, 2), k = S.colptr[col] : (S.colptr[col+1]-1)
-      vals[count] = obj_weight * S.nzval[k]
-      count += 1
+  @inbounds for col = 1:size(S, 2), k = S.colptr[col]:(S.colptr[col + 1] - 1)
+    vals[count] = obj_weight * S.nzval[k]
+    count += 1
   end
 end
 
@@ -290,8 +299,8 @@ function NLPModels.hess_structure!(
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1 <: Matrix}
   count = 1
-  for j=1:qp.meta.nvar
-    for i=j:qp.meta.nvar
+  for j = 1:(qp.meta.nvar)
+    for i = j:(qp.meta.nvar)
       rows[count] = i
       cols[count] = j
       count += 1
@@ -330,9 +339,9 @@ function NLPModels.hess_coord!(
 ) where {T, S, M1 <: Matrix}
   NLPModels.increment!(qp, :neval_hess)
   count = 1
-  for j=1:qp.meta.nvar
-    for i=j:qp.meta.nvar
-      vals[count] = obj_weight * qp.data.H[i,j]
+  for j = 1:(qp.meta.nvar)
+    for i = j:(qp.meta.nvar)
+      vals[count] = obj_weight * qp.data.H[i, j]
       count += 1
     end
   end
@@ -372,8 +381,8 @@ function NLPModels.jac_structure!(
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1, M2 <: Matrix}
   count = 1
-  for j=1:qp.meta.nvar
-    for i=1:qp.meta.ncon
+  for j = 1:(qp.meta.nvar)
+    for i = 1:(qp.meta.ncon)
       rows[count] = i
       cols[count] = j
       count += 1
@@ -385,8 +394,8 @@ end
 function NLPModels.jac_coord!(
   qp::QuadraticModel{T, S, M1, M2},
   x::AbstractVector,
-  vals::AbstractVector
-  ) where {T, S, M1, M2 <: SparseMatrixCOO}
+  vals::AbstractVector,
+) where {T, S, M1, M2 <: SparseMatrixCOO}
   NLPModels.increment!(qp, :neval_jac)
   vals .= qp.data.A.vals
   return vals
@@ -395,8 +404,8 @@ end
 function NLPModels.jac_coord!(
   qp::QuadraticModel{T, S, M1, M2},
   x::AbstractVector,
-  vals::AbstractVector
-  ) where {T, S, M1, M2 <: SparseMatrixCSC}
+  vals::AbstractVector,
+) where {T, S, M1, M2 <: SparseMatrixCSC}
   NLPModels.increment!(qp, :neval_jac)
   fill_coord!(qp.data.A, vals, one(T))
   return vals
@@ -405,12 +414,12 @@ end
 function NLPModels.jac_coord!(
   qp::QuadraticModel{T, S, M1, M2},
   x::AbstractVector,
-  vals::AbstractVector
-  ) where {T, S, M1, M2 <: Matrix}
+  vals::AbstractVector,
+) where {T, S, M1, M2 <: Matrix}
   NLPModels.increment!(qp, :neval_jac)
   count = 1
-  for j=1:qp.meta.nvar
-    for i=1:qp.meta.ncon
+  for j = 1:(qp.meta.nvar)
+    for i = 1:(qp.meta.ncon)
       vals[count] = qp.data.A[i, j]
       count += 1
     end
@@ -538,7 +547,10 @@ function slackdata(data::QPData{T}, meta::NLPModelMeta{T}, ns::Int) where {T}
   )
 end
 
-function NLPModelsModifiers.SlackModel(qp::AbstractQuadraticModel{T, S}, name = qp.meta.name * "-slack") where{T, S}
+function NLPModelsModifiers.SlackModel(
+  qp::AbstractQuadraticModel{T, S},
+  name = qp.meta.name * "-slack",
+) where {T, S}
   qp.meta.ncon == length(qp.meta.jfix) && return qp
   nfix = length(qp.meta.jfix)
   ns = qp.meta.ncon - nfix
