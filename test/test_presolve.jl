@@ -25,7 +25,8 @@
     name = "QM1",
   )
 
-  psqp = presolve(qp)
+  statsps = presolve(qp)
+  psqp = statsps.solver_specific[:presolvedQM]
 
   c_true = [-4.0; 1.0]
   c0_true = 4.0
