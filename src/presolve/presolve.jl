@@ -20,6 +20,8 @@ function presolve(
   qm::QuadraticModel{T, S, M1, M2};
   kwargs...,
 ) where {T <: Real, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
+  start_time = time()
+  elapsed_time = 0.0
   psqm = deepcopy(qm)
   psdata = psqm.data
   lvar, uvar = psqm.meta.lvar, psqm.meta.uvar
@@ -58,23 +60,50 @@ function presolve(
   if !(nnzj == length(psdata.A.rows) == length(psdata.A.cols))
     error("The length of Arows, Acols and Avals must be the same")
   end
-  psmeta = NLPModelMeta{T, S}(
-    nvarps,
-    lvar = lvar,
-    uvar = uvar,
-    ncon = ncon,
-    lcon = lcon,
-    ucon = ucon,
-    nnzj = nnzj,
-    nnzh = nnzh,
-    lin = 1:ncon,
-    islp = (ncon == 0);
-    minimize = qm.meta.minimize,
-    kwargs...,
-  )
-  ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, xrm)
 
-  return ps
+  if nvarps == 0
+    feasible = all(qm.meta.lcon .<= qm.data.A * xrm .<= qm.meta.ucon)
+    s = qm.data.c .+ qm.data.Q * xrm
+    i_l = findall(s .> zero(T))
+    s_l = sparsevec(i_l, s[i_l])
+    i_u = findall(s .< zero(T))
+    s_u = sparsevec(i_u, .-s[i_u])
+    return GenericExecutionStats(
+        feasible ? :acceptable : :infeasible,
+        ps,
+        solution = xrm,
+        objective = obj(qm, xrm),
+        multipliers = zeros(T, qm.meta.nvar),
+        multipliers_L = s_l,
+        multipliers_U = s_u,
+        iter = 0,
+        elapsed_time = time() - start_time,
+        solver_specific = Dict(:presolvedQM => nothing),
+      )
+  else
+    psmeta = NLPModelMeta{T, S}(
+      nvarps,
+      lvar = lvar,
+      uvar = uvar,
+      ncon = ncon,
+      lcon = lcon,
+      ucon = ucon,
+      nnzj = nnzj,
+      nnzh = nnzh,
+      lin = 1:ncon,
+      islp = (ncon == 0);
+      minimize = qm.meta.minimize,
+      kwargs...,
+    )
+    ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, xrm)
+    return GenericExecutionStats(
+      :unknown,
+      ps,
+      iter = 0,
+      elapsed_time = time() - start_time,
+      solver_specific = Dict(:presolvedQM => ps),
+    )
+  end
 end
 
 """

@@ -4,7 +4,7 @@ module QuadraticModels
 using LinearAlgebra, SparseArrays
 
 # our packages
-using LinearOperators, NLPModels, NLPModelsModifiers, SparseMatricesCOO
+using LinearOperators, NLPModels, NLPModelsModifiers, SolverCore, SparseMatricesCOO
 
 # auxiliary packages
 using Requires
