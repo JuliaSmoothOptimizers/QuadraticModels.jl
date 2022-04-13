@@ -8,20 +8,33 @@ mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T
 end
 
 """
-    psqm = presolve(qm::QuadraticModel{T, S}; kwargs...)
+    stats_ps = presolve(qm::QuadraticModel{T, S}; kwargs...)
 
-Apply a presolve routine to `qm` and returns a `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}`.
+Apply a presolve routine to `qm` and returns a 
+[`GenericExecutionStats`](https://juliasmoothoptimizers.github.io/SolverCore.jl/stable/reference/#SolverCore.GenericExecutionStats)
+from the package [`SolverCore.jl`](https://github.com/JuliaSmoothOptimizers/SolverCore.jl).
 The presolve operations currently implemented are:
 
-- [`remove_ifix!`](@ref)
+- [`remove_ifix!`](@ref) : remove fixed variables
 
+The `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}` is located in the `solver_specific` field:
+
+    psqm = stats_ps.solver_specific[:presolvedQM]
+
+and should be used to call [`postsolve!`](@ref).
+
+If the presolved problem has 0 variables, `stats_ps` contains a solution such that `stats_ps.solution` minimizes the primal problem,
+`stats_ps.multipliers` is a `SparseVector` full of zeros, and, with
+
+    s = qm.data.c + qm.data.H * stats_ps.solution
+
+`stats_ps.multipliers_L` is the positive part of `s` and `stats_ps.multipliers_U` is the opposite of the negative part of `s`. 
 """
 function presolve(
   qm::QuadraticModel{T, S, M1, M2};
   kwargs...,
 ) where {T <: Real, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   start_time = time()
-  elapsed_time = 0.0
   psqm = deepcopy(qm)
   psdata = psqm.data
   lvar, uvar = psqm.meta.lvar, psqm.meta.uvar
@@ -63,14 +76,14 @@ function presolve(
 
   if nvarps == 0
     feasible = all(qm.meta.lcon .<= qm.data.A * xrm .<= qm.meta.ucon)
-    s = qm.data.c .+ qm.data.Q * xrm
+    s = qm.data.c .+ Symmetric(qm.data.H, :L) * xrm
     i_l = findall(s .> zero(T))
     s_l = sparsevec(i_l, s[i_l])
     i_u = findall(s .< zero(T))
     s_u = sparsevec(i_u, .-s[i_u])
     return GenericExecutionStats(
         feasible ? :acceptable : :infeasible,
-        ps,
+        qm,
         solution = xrm,
         objective = obj(qm, xrm),
         multipliers = zeros(T, qm.meta.nvar),
