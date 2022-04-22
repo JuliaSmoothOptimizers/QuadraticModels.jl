@@ -82,17 +82,17 @@ function presolve(
     i_u = findall(s .< zero(T))
     s_u = sparsevec(i_u, .-s[i_u])
     return GenericExecutionStats(
-        feasible ? :first_order : :infeasible,
-        qm,
-        solution = xrm,
-        objective = obj(qm, xrm),
-        multipliers = zeros(T, qm.meta.nvar),
-        multipliers_L = s_l,
-        multipliers_U = s_u,
-        iter = 0,
-        elapsed_time = time() - start_time,
-        solver_specific = Dict(:presolvedQM => nothing),
-      )
+      feasible ? :first_order : :infeasible,
+      qm,
+      solution = xrm,
+      objective = obj(qm, xrm),
+      multipliers = zeros(T, qm.meta.nvar),
+      multipliers_L = s_l,
+      multipliers_U = s_u,
+      iter = 0,
+      elapsed_time = time() - start_time,
+      solver_specific = Dict(:presolvedQM => nothing),
+    )
   else
     psmeta = NLPModelMeta{T, S}(
       nvarps,
