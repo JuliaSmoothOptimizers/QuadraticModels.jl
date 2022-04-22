@@ -23,8 +23,8 @@ The `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}` is located i
 
 and should be used to call [`postsolve!`](@ref).
 
-If the presolved problem has 0 variables, `stats_ps` contains a solution such that `stats_ps.solution` minimizes the primal problem,
-`stats_ps.multipliers` is a `SparseVector` full of zeros, and, with
+If the presolved problem has 0 variables, `stats_ps.solution` contains a solution of the primal problem,
+`stats_ps.multipliers` is a zero `SparseVector`, and, if we define
 
     s = qm.data.c + qm.data.H * stats_ps.solution
 
@@ -82,7 +82,7 @@ function presolve(
     i_u = findall(s .< zero(T))
     s_u = sparsevec(i_u, .-s[i_u])
     return GenericExecutionStats(
-        feasible ? :acceptable : :infeasible,
+        feasible ? :first_order : :infeasible,
         qm,
         solution = xrm,
         objective = obj(qm, xrm),
@@ -104,7 +104,7 @@ function presolve(
       nnzj = nnzj,
       nnzh = nnzh,
       lin = 1:ncon,
-      islp = (ncon == 0);
+      islp = (nnzh == 0);
       minimize = qm.meta.minimize,
       kwargs...,
     )

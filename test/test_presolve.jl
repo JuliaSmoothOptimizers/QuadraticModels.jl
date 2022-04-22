@@ -60,5 +60,5 @@
   # test that solves the problem
   qp2 = QuadraticModel(zeros(2), SparseMatrixCOO(zeros(2,2)), A = SparseMatrixCOO(zeros(0, 2)), lvar = zeros(2), uvar = zeros(2))
   stats_ps2 = presolve(qp2)
-  @test stats_ps2.status == :acceptable
+  @test stats_ps2.status == :first_order
 end
