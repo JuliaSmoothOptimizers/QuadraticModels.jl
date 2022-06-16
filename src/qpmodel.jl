@@ -121,7 +121,7 @@ function QuadraticModel(
     permute!(Avals, pA)
   end
   QuadraticModel(
-    NLPModelMeta(
+    NLPModelMeta{T,S}(
       length(c),
       lvar = lvar,
       uvar = uvar,
@@ -167,7 +167,7 @@ function QuadraticModel(
   end
 
   QuadraticModel(
-    NLPModelMeta(
+    NLPModelMeta{T,S}(
       nvar,
       lvar = lvar,
       uvar = uvar,
