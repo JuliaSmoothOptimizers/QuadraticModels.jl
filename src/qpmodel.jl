@@ -94,6 +94,8 @@ function QuadraticModel(
   sortcols::Bool = false,
   kwargs...,
 ) where {T, S}
+  @assert all(lvar .≤ uvar)
+  @assert all(lcon .≤ ucon)
   nnzh = length(Hvals)
   if !(nnzh == length(Hrows) == length(Hcols))
     error("The length of Hrows, Hcols and Hvals must be the same")
@@ -155,6 +157,8 @@ function QuadraticModel(
   c0::T = zero(T),
   kwargs...,
 ) where {T, S}
+  @assert all(lvar .≤ uvar)
+  @assert all(lcon .≤ ucon)
   ncon, nvar = size(A)
   if typeof(H) <: AbstractLinearOperator # convert A to a LinOp if A is a Matrix?
     nnzh = 0
