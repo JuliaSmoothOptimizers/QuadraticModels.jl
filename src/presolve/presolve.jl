@@ -1,10 +1,17 @@
 include("remove_ifix.jl")
+include("empty_rows.jl")
+
+mutable struct PresolvedData{T, S}
+  xrm::S
+  row_cnt::Vector{Int}
+  nconps::Int
+end
 
 mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
   counters::Counters
   data::QPData{T, S, M1, M2}
-  xrm::S
+  psd::PresolvedData{T, S}
 end
 
 """
@@ -64,6 +71,13 @@ function presolve(
     xrm = S(undef, 0)
   end
 
+  # remove constraints
+  row_cnt = zeros(Int, ncon)
+  row_cnt!(psdata.A.rows, row_cnt)
+  rows_rm = removed_rows(row_cnt)
+  Arows_sortperm = sortperm(psdata.A.rows)
+  nconps = empty_rows!(psdata.A.rows, lcon, ucon, ncon, row_cnt, rows_rm, Arows_sortperm)
+
   # form meta
   nnzh = length(psdata.H.vals)
   if !(nnzh == length(psdata.H.rows) == length(psdata.H.cols))
@@ -86,7 +100,7 @@ function presolve(
       qm,
       solution = xrm,
       objective = obj(qm, xrm),
-      multipliers = zeros(T, qm.meta.nvar),
+      multipliers = zeros(T, nconps),
       multipliers_L = s_l,
       multipliers_U = s_u,
       iter = 0,
@@ -98,17 +112,18 @@ function presolve(
       nvarps,
       lvar = lvar,
       uvar = uvar,
-      ncon = ncon,
+      ncon = nconps,
       lcon = lcon,
       ucon = ucon,
       nnzj = nnzj,
       nnzh = nnzh,
-      lin = 1:ncon,
+      lin = 1:nconps,
       islp = (nnzh == 0);
       minimize = qm.meta.minimize,
       kwargs...,
     )
-    ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, xrm)
+    psd = PresolvedData{T, S}(xrm, row_cnt, nconps)
+    ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
     return GenericExecutionStats(
       :unknown,
       ps,
@@ -131,10 +146,15 @@ function postsolve!(
   psqm::PresolvedQuadraticModel{T, S},
   x_in::S,
   x_out::S,
+  y_in::S,
+  y_out::S,
 ) where {T, S}
   if length(qm.meta.ifix) > 0
-    restore_ifix!(qm.meta.ifix, psqm.xrm, x_in, x_out)
+    restore_ifix!(qm.meta.ifix, psqm.psd.xrm, x_in, x_out)
   else
     x_out .= @views x_in[1:(qm.meta.nvar)]
   end
+  ncon = length(y_out)
+  restore_y!(y_in, y_out, psqm.psd.row_cnt, ncon)
+
 end
