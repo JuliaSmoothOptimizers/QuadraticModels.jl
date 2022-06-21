@@ -98,11 +98,9 @@ function remove_ifix!(
         lcon[Ai] -= Ax * xifix
         ucon[Ai] -= Ax * xifix
       else
-        if Awritepos != k
-          Arows[Awritepos] = Ai
-          Acols[Awritepos] = (Aj < newcurrentifix) ? Aj : Aj - 1
-          Avals[Awritepos] = Ax
-        end
+        Arows[Awritepos] = Ai
+        Acols[Awritepos] = (Aj < newcurrentifix) ? Aj : Aj - 1
+        Avals[Awritepos] = Ax
         Awritepos += 1
       end
       k += 1

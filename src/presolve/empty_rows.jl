@@ -5,12 +5,10 @@ function row_cnt!(Arows, row_cnt::Vector{Int})
   end
 end
 
-function removed_rows(row_cnt::Vector{Int})
-  return findall(isequal(0), row_cnt)
-end
+removed_empty_rows(row_cnt::Vector{Int}) = findall(isequal(0), row_cnt)
 
 function empty_rows!(Arows, lcon::Vector{T}, ucon::Vector{T}, ncon, row_cnt::Vector{Int}, 
-                     rows_rm::Vector{Int}, Arows_sortperm::Vector{Int}) where {T}
+                     rows_rm::Vector{Int}, Arows_s) where {T}
   new_ncon = 0
   for i=1:ncon
     if row_cnt[i] == 0
@@ -24,7 +22,6 @@ function empty_rows!(Arows, lcon::Vector{T}, ucon::Vector{T}, ncon, row_cnt::Vec
   resize!(lcon, new_ncon)
   resize!(ucon, new_ncon)
 
-  Arows_s = @views Arows[Arows_sortperm]
   c_rm = 1
   nrm = length(rows_rm)
   for k=1:length(Arows)
@@ -39,7 +36,7 @@ end
 function restore_y!(y::Vector{T}, yout::Vector{T}, row_cnt, ncon) where {T}
   c_y = 0
   for i = 1:ncon
-    if row_cnt[i] == 0
+    if row_cnt[i] == 0 || row_cnt[i] == 1
       yout[i] = zero(T)
     else
       c_y += 1

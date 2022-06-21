@@ -1,7 +1,9 @@
 include("remove_ifix.jl")
 include("empty_rows.jl")
+include("singleton_rows.jl")
 
 mutable struct PresolvedData{T, S}
+  ifix::Vector{Int}
   xrm::S
   row_cnt::Vector{Int}
   nconps::Int
@@ -48,7 +50,35 @@ function presolve(
   lcon, ucon = psqm.meta.lcon, psqm.meta.ucon
   nvar, ncon = psqm.meta.nvar, psqm.meta.ncon
 
-  ifix = qm.meta.ifix
+  # empty rows
+  row_cnt = zeros(Int, ncon)
+  row_cnt!(psdata.A.rows, row_cnt) # number of coefficients per row
+  rows_rm = removed_empty_rows(row_cnt) # indices of the empty rows
+  if length(rows_rm) > 0
+    Arows_sortperm = sortperm(psdata.A.rows) # permute rows 
+    Arows_s = @views psdata.A.rows[Arows_sortperm]
+    nconps = empty_rows!(psdata.A.rows, lcon, ucon, ncon, row_cnt, rows_rm, Arows_s)
+  else
+    nconps = ncon
+  end
+
+  # remove singleton rows
+  if nconps != ncon
+    row_cnt2 = Vector{Int}(undef, nconps)
+  else
+    row_cnt2 = row_cnt
+  end
+  row_cnt2 .= 0
+  row_cnt!(psdata.A.rows, row_cnt2) # number of coefficients per rows
+  singl_rows = removed_singleton_rows(row_cnt2) # indices of the empty rows
+  if length(singl_rows) > 0
+    nconps = singleton_rows!(psdata.A.rows, psdata.A.cols, psdata.A.vals, lcon, ucon, lvar, uvar, nvar, nconps, row_cnt2, singl_rows)
+  else
+    nconps = nconps
+  end
+
+  # remove fixed variables
+  ifix = findall(lvar .== uvar)
   if length(ifix) > 0
     xrm, psdata.c0, nvarps = remove_ifix!(
       ifix,
@@ -70,13 +100,6 @@ function presolve(
     nvarps = nvar
     xrm = S(undef, 0)
   end
-
-  # remove constraints
-  row_cnt = zeros(Int, ncon)
-  row_cnt!(psdata.A.rows, row_cnt)
-  rows_rm = removed_rows(row_cnt)
-  Arows_sortperm = sortperm(psdata.A.rows)
-  nconps = empty_rows!(psdata.A.rows, lcon, ucon, ncon, row_cnt, rows_rm, Arows_sortperm)
 
   # form meta
   nnzh = length(psdata.H.vals)
@@ -122,7 +145,7 @@ function presolve(
       minimize = qm.meta.minimize,
       kwargs...,
     )
-    psd = PresolvedData{T, S}(xrm, row_cnt, nconps)
+    psd = PresolvedData{T, S}(ifix, xrm, row_cnt, nconps)
     ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
     return GenericExecutionStats(
       :unknown,
@@ -149,8 +172,8 @@ function postsolve!(
   y_in::S,
   y_out::S,
 ) where {T, S}
-  if length(qm.meta.ifix) > 0
-    restore_ifix!(qm.meta.ifix, psqm.psd.xrm, x_in, x_out)
+  if length(psqm.psd.ifix) > 0
+    restore_ifix!(psqm.psd.ifix, psqm.psd.xrm, x_in, x_out)
   else
     x_out .= @views x_in[1:(qm.meta.nvar)]
   end
