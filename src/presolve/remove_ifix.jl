@@ -89,12 +89,12 @@ function remove_ifix!(
 
     # remove ifix in A cols
     Awritepos = 1
-    currentAn = nvar - idxfix + 1  # remove rows if uplo == :U 
     k = 1
-    while k <= Annz && Acols[k] <= currentAn
+    Arm_tmp = 0
+    while k <= Annz - Arm
       Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
       if Aj == newcurrentifix
-        Arm += 1
+        Arm_tmp += 1
         lcon[Ai] -= Ax * xifix
         ucon[Ai] -= Ax * xifix
       else
@@ -105,6 +105,7 @@ function remove_ifix!(
       end
       k += 1
     end
+    Arm += Arm_tmp
 
     # update c0 with c[currentifix] coeff
     c0_offset += c[currentifix] * xifix
