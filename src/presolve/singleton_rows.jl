@@ -3,7 +3,7 @@ removed_singleton_rows(row_cnt::Vector{Int}) = findall(isequal(1), row_cnt)
 function singleton_rows!(Arows, Acols, Avals, lcon::Vector{T}, ucon::Vector{T}, lvar, uvar,
                          nvar, ncon, row_cnt::Vector{Int}, 
                          singl_rows::Vector{Int}) where {T}
-                         
+
   # assume Acols is sorted
   Annz = length(Arows)
   nsingl = length(singl_rows)
@@ -17,18 +17,17 @@ function singleton_rows!(Arows, Acols, Avals, lcon::Vector{T}, ucon::Vector{T}, 
 
     # remove singleton rows in A rows
     Awritepos = 1
-    currentAn = nvar - idxsingl + 1 
     k = 1
     while k <= Annz - idxsingl + 1
       Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
       if Ai == newcurrentisingl
-        oldAi = Ai + idxsingl - 1
+        # oldAi = Ai + idxsingl - 1
         if Ax > zero(T)
-          lvar[Aj] = max(lvar[Aj], lcon[oldAi] / Ax)
-          uvar[Aj] = min(uvar[Aj], ucon[oldAi] / Ax)
+          lvar[Aj] = max(lvar[Aj], lcon[currentisingl] / Ax)
+          uvar[Aj] = min(uvar[Aj], ucon[currentisingl] / Ax)
         elseif Ax < zero(T)
-          lvar[Aj] = max(lvar[Aj], ucon[oldAi] / Ax)
-          uvar[Aj] = min(uvar[Aj], lcon[oldAi] / Ax)
+          lvar[Aj] = max(lvar[Aj], ucon[currentisingl] / Ax)
+          uvar[Aj] = min(uvar[Aj], lcon[currentisingl] / Ax)
         else
           error("remove explicit zeros in A")
         end

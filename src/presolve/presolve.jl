@@ -1,6 +1,7 @@
 include("remove_ifix.jl")
 include("empty_rows.jl")
 include("singleton_rows.jl")
+include("postsolve_utils.jl")
 
 mutable struct PresolvedData{T, S}
   ifix::Vector{Int}
@@ -171,13 +172,21 @@ function postsolve!(
   x_out::S,
   y_in::S,
   y_out::S,
+  s_l::SparseVector{T, Int},
+  s_u::SparseVector{T, Int},
 ) where {T, S}
-  if length(psqm.psd.ifix) > 0
-    restore_ifix!(psqm.psd.ifix, psqm.psd.xrm, x_in, x_out)
+  ifix = psqm.psd.ifix
+  if length(ifix) > 0
+    restore_ifix!(ifix, psqm.psd.xrm, x_in, x_out)
   else
     x_out .= @views x_in[1:(qm.meta.nvar)]
   end
   ncon = length(y_out)
   restore_y!(y_in, y_out, psqm.psd.row_cnt, ncon)
 
+  ilow, iupp = s_l.nzind, s_u.nzind
+  restore_ilow_iupp!(ilow, iupp, ifix)
+  s_l_out = SparseVector(qm.meta.nvar, ilow, s_l.nzval)
+  s_u_out = SparseVector(qm.meta.nvar, iupp, s_u.nzval)
+  return s_l_out, s_u_out
 end
