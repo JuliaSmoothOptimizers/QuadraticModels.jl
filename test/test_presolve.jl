@@ -226,5 +226,5 @@ end
   s_u = sparse([3.0; 0.0])
   x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
   @test y_out == [2.0; 0.0; 0.0; 0.0; 0.0; 4.0]
-  @test x_out == [4.0/3.0; 7.0; 4.0]
+  @test x_out == [4.0 / 3.0; 7.0; 4.0]
 end

@@ -22,7 +22,7 @@ function update_kept_rows!(kept_rows::Vector{Bool}, vec_to_rm::Vector{Int})
   n_rm = length(vec_to_rm)
   offset = 0
   c_v = 1
-  for i=1:ncon
+  for i = 1:ncon
     if !kept_rows[i]
       offset += 1
     else
@@ -99,7 +99,19 @@ function presolve(
   if length(singl_rows) > 0
     singl_row_pass = true
     update_kept_rows!(kept_rows, singl_rows)
-    nconps = singleton_rows!(psdata.A.rows, psdata.A.cols, psdata.A.vals, lcon, ucon, lvar, uvar, nvar, nconps, row_cnt, singl_rows)
+    nconps = singleton_rows!(
+      psdata.A.rows,
+      psdata.A.cols,
+      psdata.A.vals,
+      lcon,
+      ucon,
+      lvar,
+      uvar,
+      nvar,
+      nconps,
+      row_cnt,
+      singl_rows,
+    )
   else
     singl_row_pass = false
     nconps = nconps

@@ -9,9 +9,19 @@ Removes the singleton rows of A, and the corresponding elements in lcon and ucon
 
 Returns the new number of constraints `new_ncon` and updates in-place `Arows`, `Acols`, `Avals`, `lcon`, `ucon`, `lvar`, `uvar`.
 """
-function singleton_rows!(Arows, Acols, Avals, lcon::Vector{T}, ucon::Vector{T}, lvar, uvar,
-                         nvar, ncon, row_cnt::Vector{Int}, 
-                         singl_rows::Vector{Int}) where {T}
+function singleton_rows!(
+  Arows,
+  Acols,
+  Avals,
+  lcon::Vector{T},
+  ucon::Vector{T},
+  lvar,
+  uvar,
+  nvar,
+  ncon,
+  row_cnt::Vector{Int},
+  singl_rows::Vector{Int},
+) where {T}
 
   # assume Acols is sorted
   Annz = length(Arows)

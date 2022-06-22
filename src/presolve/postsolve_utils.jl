@@ -30,7 +30,7 @@ function restore_ilow_iupp!(ilow, iupp, ifix)
   nfix = length(ifix)
 
   nlow = length(ilow)
-  for i in 1:nlow
+  for i = 1:nlow
     while c_fix ≤ nfix && ilow[i] ≤ ifix[c_fix]
       c_fix += 1
     end
@@ -39,7 +39,7 @@ function restore_ilow_iupp!(ilow, iupp, ifix)
 
   c_fix = 1
   nupp = length(iupp)
-  for i in 1:nupp
+  for i = 1:nupp
     while c_fix ≤ nfix && iupp[i] ≤ ifix[c_fix]
       c_fix += 1
     end

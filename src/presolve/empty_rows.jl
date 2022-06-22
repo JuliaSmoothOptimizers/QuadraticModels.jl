@@ -1,5 +1,5 @@
 function row_cnt!(Arows, row_cnt::Vector{Int})
-  for k=1:length(Arows)
+  for k = 1:length(Arows)
     i = Arows[k]
     row_cnt[i] += 1
   end
@@ -16,10 +16,17 @@ Removes the empty rows of A, and the corresponding elements in lcon and ucon tha
 
 Returns the new number of constraints `new_ncon` and updates in-place `Arows`, `lcon`, `ucon`.
 """
-function empty_rows!(Arows, lcon::Vector{T}, ucon::Vector{T}, ncon, row_cnt::Vector{Int}, 
-                     empty_rows::Vector{Int}, Arows_s) where {T}
+function empty_rows!(
+  Arows,
+  lcon::Vector{T},
+  ucon::Vector{T},
+  ncon,
+  row_cnt::Vector{Int},
+  empty_rows::Vector{Int},
+  Arows_s,
+) where {T}
   new_ncon = 0
-  for i=1:ncon
+  for i = 1:ncon
     if row_cnt[i] == 0
       @assert lcon[i] ≤ zero(T) ≤ ucon[i]
     else
@@ -33,9 +40,9 @@ function empty_rows!(Arows, lcon::Vector{T}, ucon::Vector{T}, ncon, row_cnt::Vec
 
   c_rm = 1
   nrm = length(empty_rows)
-  for k=1:length(Arows)
+  for k = 1:length(Arows)
     while c_rm ≤ nrm && Arows_s[k] ≥ empty_rows[c_rm]
-      c_rm += 1 
+      c_rm += 1
     end
     Arows_s[k] -= c_rm - 1
   end
