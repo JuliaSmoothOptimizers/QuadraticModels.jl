@@ -95,8 +95,9 @@ function remove_ifix!(
       Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
       if Aj == newcurrentifix
         Arm_tmp += 1
-        lcon[Ai] -= Ax * xifix
-        ucon[Ai] -= Ax * xifix
+        con_offset = Ax * xifix
+        lcon[Ai] -= con_offset
+        ucon[Ai] -= con_offset
       else
         Arows[Awritepos] = Ai
         Acols[Awritepos] = (Aj < newcurrentifix) ? Aj : Aj - 1
@@ -137,19 +138,4 @@ function remove_ifix!(
   nvarrm = nvar - nfix
 
   return xrm, c0ps, nvarrm
-end
-
-function restore_ifix!(ifix, xrm, x, xout)
-  # put x and xrm inside xout
-  cfix, cx = 1, 1
-  nfix = length(ifix)
-  for i = 1:length(xout)
-    if cfix <= nfix && i == ifix[cfix]
-      xout[i] = xrm[cfix]
-      cfix += 1
-    else
-      xout[i] = x[cx]
-      cx += 1
-    end
-  end
 end
