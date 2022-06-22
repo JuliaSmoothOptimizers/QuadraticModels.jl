@@ -1,5 +1,14 @@
-removed_singleton_rows(row_cnt::Vector{Int}) = findall(isequal(1), row_cnt)
+find_singleton_rows(row_cnt::Vector{Int}) = findall(isequal(1), row_cnt)
 
+"""
+    new_ncon = singleton_rows!(Arows, Acols, Avals, lcon, ucon,
+                               lvar, uvar, nvar, ncon, row_cnt, singl_rows)
+
+Removes the singleton rows of A, and the corresponding elements in lcon and ucon that are in `singl_rows`.
+`row_cnt` is a vector of the number of elements per row.
+
+Returns the new number of constraints `new_ncon` and updates in-place `Arows`, `Acols`, `Avals`, `lcon`, `ucon`, `lvar`, `uvar`.
+"""
 function singleton_rows!(Arows, Acols, Avals, lcon::Vector{T}, ucon::Vector{T}, lvar, uvar,
                          nvar, ncon, row_cnt::Vector{Int}, 
                          singl_rows::Vector{Int}) where {T}
@@ -21,7 +30,6 @@ function singleton_rows!(Arows, Acols, Avals, lcon::Vector{T}, ucon::Vector{T}, 
     while k <= Annz - idxsingl + 1
       Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
       if Ai == newcurrentisingl
-        # oldAi = Ai + idxsingl - 1
         if Ax > zero(T)
           lvar[Aj] = max(lvar[Aj], lcon[currentisingl] / Ax)
           uvar[Aj] = min(uvar[Aj], ucon[currentisingl] / Ax)
@@ -48,15 +56,7 @@ function singleton_rows!(Arows, Acols, Avals, lcon::Vector{T}, ucon::Vector{T}, 
     resize!(Avals, Annz)
   end
 
-  new_ncon = 0
-  for i=1:ncon
-    if row_cnt[i] != 1
-      new_ncon += 1
-      lcon[new_ncon] = lcon[i]
-      ucon[new_ncon] = ucon[i]
-    end
-  end
-  resize!(lcon, new_ncon)
-  resize!(ucon, new_ncon)
-  return new_ncon
+  deleteat!(lcon, singl_rows)
+  deleteat!(ucon, singl_rows)
+  return ncon - nsingl
 end

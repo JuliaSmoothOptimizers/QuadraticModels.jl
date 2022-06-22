@@ -5,10 +5,19 @@ function row_cnt!(Arows, row_cnt::Vector{Int})
   end
 end
 
-removed_empty_rows(row_cnt::Vector{Int}) = findall(isequal(0), row_cnt)
+find_empty_rows(row_cnt::Vector{Int}) = findall(isequal(0), row_cnt)
 
+"""
+    new_ncon = empty_rows!(Arows, lcon, ucon, ncon, row_cnt, empty_rows, Arows_s)
+
+Removes the empty rows of A, and the corresponding elements in lcon and ucon that are in `empty_rows`.
+`Arows_s` is a view of `Arows` sorted in ascending order.
+`row_cnt` is a vector of the number of elements per row.
+
+Returns the new number of constraints `new_ncon` and updates in-place `Arows`, `lcon`, `ucon`.
+"""
 function empty_rows!(Arows, lcon::Vector{T}, ucon::Vector{T}, ncon, row_cnt::Vector{Int}, 
-                     rows_rm::Vector{Int}, Arows_s) where {T}
+                     empty_rows::Vector{Int}, Arows_s) where {T}
   new_ncon = 0
   for i=1:ncon
     if row_cnt[i] == 0
@@ -23,24 +32,12 @@ function empty_rows!(Arows, lcon::Vector{T}, ucon::Vector{T}, ncon, row_cnt::Vec
   resize!(ucon, new_ncon)
 
   c_rm = 1
-  nrm = length(rows_rm)
+  nrm = length(empty_rows)
   for k=1:length(Arows)
-    while c_rm ≤ nrm && Arows_s[k] ≥ rows_rm[c_rm]
+    while c_rm ≤ nrm && Arows_s[k] ≥ empty_rows[c_rm]
       c_rm += 1 
     end
     Arows_s[k] -= c_rm - 1
   end
   return new_ncon
-end
-
-function restore_y!(y::Vector{T}, yout::Vector{T}, row_cnt, ncon) where {T}
-  c_y = 0
-  for i = 1:ncon
-    if row_cnt[i] == 0 || row_cnt[i] == 1
-      yout[i] = zero(T)
-    else
-      c_y += 1
-      yout[i] = y[c_y]
-    end
-  end
 end

@@ -53,10 +53,10 @@
   @test psqp.meta.nvar == 2
 
   x_in = [4.0; 7.0]
-  x_out = zeros(3)
   y_in = [2.0; 2.0]
-  y_out = zeros(2)
-  postsolve!(qp, psqp, x_in, x_out, y_in, y_out)
+  s_l = sparse([3.0; 2.0])
+  s_u = sparse([0.0; 0.0])
+  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
   @test x_out == [4.0; 2.0; 7.0]
 
   # test that solves the problem
@@ -118,10 +118,10 @@ end
   @test psqp.meta.ncon == 3
 
   x_in = [4.0; 7.0; 4.0]
-  x_out = zeros(3)
   y_in = [2.0; 2.0; 4.0]
-  y_out = zeros(6)
-  postsolve!(qp, psqp, x_in, x_out, y_in, y_out)
+  s_l = sparse([3.0; 4.0; 2.0])
+  s_u = sparse([0.0; 3.0; 0.0])
+  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
   @test y_out == [2.0; 0.0; 0.0; 2.0; 0.0; 4.0]
 end
 
@@ -170,10 +170,10 @@ end
   @test psqp.meta.ncon == 2
 
   x_in = [4.0; 7.0; 4.0]
-  x_out = zeros(3)
   y_in = [2.0; 4.0]
-  y_out = zeros(6)
-  postsolve!(qp, psqp, x_in, x_out, y_in, y_out)
+  s_l = sparse([3.0; 4.0; 2.0])
+  s_u = sparse([0.0; 3.0; 0.0])
+  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
   @test y_out == [2.0; 0.0; 0.0; 0.0; 0.0; 4.0]
 end
 
@@ -221,10 +221,10 @@ end
   @test psqp.meta.ncon == 2
 
   x_in = [7.0; 4.0]
-  x_out = zeros(3)
   y_in = [2.0; 4.0]
-  y_out = zeros(6)
-  postsolve!(qp, psqp, x_in, x_out, y_in, y_out)
+  s_l = sparse([4.0; 2.0])
+  s_u = sparse([3.0; 0.0])
+  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
   @test y_out == [2.0; 0.0; 0.0; 0.0; 0.0; 4.0]
   @test x_out == [4.0/3.0; 7.0; 4.0]
 end
