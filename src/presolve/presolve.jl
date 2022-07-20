@@ -81,77 +81,84 @@ function presolve(
   nconps = ncon
   nvarps = nvar
   xps = S(undef, nvar)
+  nb_pass = 1
+  keep_iterating = true
 
-  ## while
-  resize!(row_cnt, nconps)
-  row_cnt .= 0
-  row_cnt!(psdata.A.rows, row_cnt) # number of coefficients per row
-  # empty rows
-  empty_rows = find_empty_rows(row_cnt) # indices of the empty rows
-  if length(empty_rows) > 0
-    empty_row_pass = true
-    update_kept_v!(kept_rows, empty_rows, ncon)
-    Arows_sortperm = sortperm(psdata.A.rows) # permute rows 
-    Arows_s = @views psdata.A.rows[Arows_sortperm]
-    nconps = empty_rows!(psdata.A.rows, lcon, ucon, ncon, row_cnt, empty_rows, Arows_s)
-  else
-    empty_row_pass = false
-    nconps = ncon
-  end
-
-  # remove singleton rows
-  if empty_row_pass
+  while keep_iterating
     resize!(row_cnt, nconps)
     row_cnt .= 0
-    row_cnt!(psdata.A.rows, row_cnt) # number of coefficients per rows
-  end
-  singl_rows = find_singleton_rows(row_cnt) # indices of the singleton rows
-  if length(singl_rows) > 0
-    singl_row_pass = true
-    update_kept_v!(kept_rows, singl_rows, ncon)
-    nconps = singleton_rows!(
-      psdata.A.rows,
-      psdata.A.cols,
-      psdata.A.vals,
-      lcon,
-      ucon,
-      lvar,
-      uvar,
-      nvar,
-      nconps,
-      row_cnt,
-      singl_rows,
-    )
-  else
-    singl_row_pass = false
-    nconps = nconps
-  end
+    row_cnt!(psdata.A.rows, row_cnt) # number of coefficients per row
 
-  # remove fixed variables
-  ifix = findall(lvar .== uvar)
-  if length(ifix) > 0
-    psdata.c0, nvarps = remove_ifix!(
-      ifix,
-      psdata.H.rows,
-      psdata.H.cols,
-      psdata.H.vals,
-      nvarps,
-      psdata.A.rows,
-      psdata.A.cols,
-      psdata.A.vals,
-      psdata.c,
-      psdata.c0,
-      lvar,
-      uvar,
-      lcon,
-      ucon,
-      kept_cols,
-      xps,
-      nvar,
-    )
-  end
+    # empty rows
+    empty_rows = find_empty_rows(row_cnt) # indices of the empty rows
+    if length(empty_rows) > 0
+      empty_row_pass = true
+      update_kept_v!(kept_rows, empty_rows, ncon)
+      Arows_sortperm = sortperm(psdata.A.rows) # permute rows 
+      Arows_s = @views psdata.A.rows[Arows_sortperm]
+      # todo: remove all allocs
+      nconps = empty_rows!(psdata.A.rows, lcon, ucon, nconps, row_cnt, empty_rows, Arows_s)
+    else
+      empty_row_pass = false
+    end
 
-  ## end
+    # remove singleton rows
+    if empty_row_pass
+      resize!(row_cnt, nconps)
+      row_cnt .= 0
+      row_cnt!(psdata.A.rows, row_cnt) # number of coefficients per rows
+    end
+    singl_rows = find_singleton_rows(row_cnt) # indices of the singleton rows
+    if length(singl_rows) > 0
+      singl_row_pass = true
+      update_kept_v!(kept_rows, singl_rows, ncon)
+      nconps = singleton_rows!(
+        psdata.A.rows,
+        psdata.A.cols,
+        psdata.A.vals,
+        lcon,
+        ucon,
+        lvar,
+        uvar,
+        nvarps,
+        nconps,
+        row_cnt,
+        singl_rows,
+      )
+    else
+      singl_row_pass = false
+    end
+
+    # remove fixed variables
+    ifix = findall(lvar .== uvar)
+    if length(ifix) > 0
+      ifix_pass = true
+      psdata.c0, nvarps = remove_ifix!(
+        ifix,
+        psdata.H.rows,
+        psdata.H.cols,
+        psdata.H.vals,
+        nvarps,
+        psdata.A.rows,
+        psdata.A.cols,
+        psdata.A.vals,
+        psdata.c,
+        psdata.c0,
+        lvar,
+        uvar,
+        lcon,
+        ucon,
+        kept_cols,
+        xps,
+        nvar,
+      )
+    else
+      ifix_pass = false
+    end
+
+    keep_iterating = empty_row_pass || singl_row_pass || ifix_pass
+    keep_iterating && (nb_pass += 1)
+  end
 
   # form meta
   nnzh = length(psdata.H.vals)
@@ -175,7 +182,7 @@ function presolve(
       qm,
       solution = xps,
       objective = obj(qm, xps),
-      multipliers = zeros(T, nconps),
+      multipliers = zeros(T, ncon),
       multipliers_L = s_l,
       multipliers_U = s_u,
       iter = 0,
