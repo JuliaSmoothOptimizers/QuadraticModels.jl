@@ -22,14 +22,14 @@ function unconstrained_reductions!(
     # check diagonal H or 
     idx_deb = findfirst(isequal(var), Hcols)
     if idx_deb === nothing
-      if c[var] < zero(T) 
+      if c[var] < zero(T)
         xps[var] = uvar[var]
         lvar[var] = uvar[var]
       else
         xps[var] = lvar[var]
         uvar[var] = lvar[var]
       end
-        xps[var] == -T(Inf) && (unbounded = true)
+      xps[var] == -T(Inf) && (unbounded = true)
     else
       continue
       # todo : QP 

@@ -2,7 +2,7 @@ function restore_ifix!(kept_cols, xps, x, xout)
   # put x and xps inside xout according to kept_cols
   nvar = length(xout)
   cx = 0
-  for i=1:nvar
+  for i = 1:nvar
     if kept_cols[i]
       cx += 1
       xout[i] = x[cx]
@@ -33,7 +33,7 @@ function restore_ilow_iupp!(ilow, iupp, kept_cols)
   for i = 1:nvar
     if kept_cols[i] == false
       offset += 1
-    end 
+    end
     if c_low ≤ nlow && ilow[c_low] + offset == i
       ilow[c_low] += 1
       c_low += 1

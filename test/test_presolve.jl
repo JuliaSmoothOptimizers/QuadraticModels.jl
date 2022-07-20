@@ -34,9 +34,7 @@
     6.0 1.0
     1.0 4.0
   ]
-  Aps_true = [
-    1.0 1.0
-  ]
+  Aps_true = [1.0 1.0]
   lvarps_true, uvarps_true = [0.0; 0.0], [Inf; Inf]
 
   @test psqp.data.c == [-4.0; 1.0]
