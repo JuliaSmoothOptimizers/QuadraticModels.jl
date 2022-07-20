@@ -1,6 +1,8 @@
+include("presolve_utils.jl")
 include("remove_ifix.jl")
 include("empty_rows.jl")
 include("singleton_rows.jl")
+include("unconstrained_reductions.jl")
 include("postsolve_utils.jl")
 
 mutable struct PresolvedData{T, S}
@@ -16,25 +18,6 @@ mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T
   counters::Counters
   data::QPData{T, S, M1, M2}
   psd::PresolvedData{T, S}
-end
-
-function update_kept_v!(kept_v::Vector{Bool}, vec_to_rm::Vector{Int}, n::Int)
-  # update kept_v, shift indices if there are already some removed rows (kept_v[i] = false)
-  # assume vec_to_rm sorted
-  # if there are some already removed rows, vec_to_rm must be shifted
-  n_rm = length(vec_to_rm)
-  offset = 0
-  c_v = 1
-  for i = 1:n
-    if !kept_v[i]
-      offset += 1
-    else
-      if c_v ≤ n_rm && vec_to_rm[c_v] + offset == i
-        kept_v[i] = false
-        c_v += 1
-      end
-    end
-  end
 end
 
 """
@@ -67,8 +50,10 @@ function presolve(
   kwargs...,
 ) where {T <: Real, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   start_time = time()
+  @assert qm.meta.minimize
   psqm = deepcopy(qm)
   psdata = psqm.data
+  c = psdata.c
   lvar, uvar = psqm.meta.lvar, psqm.meta.uvar
   lcon, ucon = psqm.meta.lcon, psqm.meta.ucon
   nvar, ncon = psqm.meta.nvar, psqm.meta.ncon
@@ -76,6 +61,7 @@ function presolve(
   lcon === ucon && (lcon = copy(lcon))
   lvar === uvar && (lvar = copy(lvar))
   row_cnt = Vector{Int}(undef, ncon)
+  col_cnt = Vector{Int}(undef, nvar)
   kept_rows = fill(true, ncon)
   kept_cols = fill(true, nvar)
   nconps = ncon
@@ -83,21 +69,19 @@ function presolve(
   xps = S(undef, nvar)
   nb_pass = 1
   keep_iterating = true
+  unbounded = false
 
   while keep_iterating
     resize!(row_cnt, nconps)
     row_cnt .= 0
-    row_cnt!(psdata.A.rows, row_cnt) # number of coefficients per row
+    vec_cnt!(psdata.A.rows, row_cnt) # number of coefficients per row
 
     # empty rows
-    empty_rows = find_empty_rows(row_cnt) # indices of the empty rows
+    empty_rows = find_empty_rowscols(row_cnt) # indices of the empty rows
     if length(empty_rows) > 0
       empty_row_pass = true
       update_kept_v!(kept_rows, empty_rows, ncon)
-      Arows_sortperm = sortperm(psdata.A.rows) # permute rows 
-      Arows_s = @views psdata.A.rows[Arows_sortperm]
-      # todo: remove all allocs
-      nconps = empty_rows!(psdata.A.rows, lcon, ucon, nconps, row_cnt, empty_rows, Arows_s)
+      nconps = empty_rows!(psdata.A.rows, lcon, ucon, nconps, row_cnt, empty_rows)
     else
       empty_row_pass = false
     end
@@ -106,9 +90,9 @@ function presolve(
     if empty_row_pass
       resize!(row_cnt, nconps)
       row_cnt .= 0
-      row_cnt!(psdata.A.rows, row_cnt) # number of coefficients per rows
+      vec_cnt!(psdata.A.rows, row_cnt) # number of coefficients per rows
     end
-    singl_rows = find_singleton_rows(row_cnt) # indices of the singleton rows
+    singl_rows = find_singleton_rowscols(row_cnt) # indices of the singleton rows
     if length(singl_rows) > 0
       singl_row_pass = true
       update_kept_v!(kept_rows, singl_rows, ncon)
@@ -129,6 +113,23 @@ function presolve(
       singl_row_pass = false
     end
 
+    # unconstrained reductions
+    col_cnt .= 0
+    vec_cnt!(psdata.A.cols, col_cnt) # number of coefficients per row
+    lin_unconstr_vars = find_empty_rowscols(col_cnt) # indices of the singleton rows
+    if length(lin_unconstr_vars) > 0
+      unbounded = unconstrained_reductions!(
+        c,
+        psdata.H.rows,
+        psdata.H.cols,
+        psdata.H.vals,
+        lvar,
+        uvar,
+        xps,
+        lin_unconstr_vars,
+      )
+    end
+
     # remove fixed variables
     ifix = findall(lvar .== uvar)
     if length(ifix) > 0
@@ -142,7 +143,7 @@ function presolve(
         psdata.A.rows,
         psdata.A.cols,
         psdata.A.vals,
-        psdata.c,
+        c,
         psdata.c0,
         lvar,
         uvar,
@@ -152,11 +153,12 @@ function presolve(
         xps,
         nvar,
       )
+      resize!(col_cnt, nvarps)
     else
       ifix_pass = false
     end
 
-    keep_iterating = empty_row_pass || singl_row_pass || ifix_pass
+    keep_iterating = (empty_row_pass || singl_row_pass || ifix_pass) && !unbounded
     keep_iterating && (nb_pass += 1)
   end
 
@@ -170,7 +172,16 @@ function presolve(
     error("The length of Arows, Acols and Avals must be the same")
   end
 
-  if nvarps == 0
+  if unbounded
+    return GenericExecutionStats(
+      :unbounded,
+      qm,
+      solution = xps,
+      iter = 0,
+      elapsed_time = time() - start_time,
+      solver_specific = Dict(:presolvedQM => nothing),
+    )
+  elseif nvarps == 0
     feasible = all(qm.meta.lcon .<= qm.data.A * xps .<= qm.meta.ucon)
     s = qm.data.c .+ Symmetric(qm.data.H, :L) * xps
     i_l = findall(s .> zero(T))

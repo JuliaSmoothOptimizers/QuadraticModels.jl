@@ -1,5 +1,3 @@
-find_singleton_rows(row_cnt::Vector{Int}) = findall(isequal(1), row_cnt)
-
 """
     new_ncon = singleton_rows!(Arows, Acols, Avals, lcon, ucon,
                                lvar, uvar, nvar, ncon, row_cnt, singl_rows)
