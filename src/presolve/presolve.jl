@@ -4,10 +4,11 @@ include("singleton_rows.jl")
 include("postsolve_utils.jl")
 
 mutable struct PresolvedData{T, S}
-  ifix::Vector{Int}
-  xrm::S
+  xps::S
   kept_rows::Vector{Bool}
+  kept_cols::Vector{Bool}
   nconps::Int
+  nvarps::Int
 end
 
 mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
@@ -17,17 +18,19 @@ mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T
   psd::PresolvedData{T, S}
 end
 
-function update_kept_rows!(kept_rows::Vector{Bool}, vec_to_rm::Vector{Int})
-  ncon = length(kept_rows)
+function update_kept_v!(kept_v::Vector{Bool}, vec_to_rm::Vector{Int}, n::Int)
+  # update kept_v, shift indices if there are already some removed rows (kept_v[i] = false)
+  # assume vec_to_rm sorted
+  # if there are some already removed rows, vec_to_rm must be shifted
   n_rm = length(vec_to_rm)
   offset = 0
   c_v = 1
-  for i = 1:ncon
-    if !kept_rows[i]
+  for i = 1:n
+    if !kept_v[i]
       offset += 1
     else
       if c_v ≤ n_rm && vec_to_rm[c_v] + offset == i
-        kept_rows[i] = false
+        kept_v[i] = false
         c_v += 1
       end
     end
@@ -72,15 +75,22 @@ function presolve(
   # copy if same vector
   lcon === ucon && (lcon = copy(lcon))
   lvar === uvar && (lvar = copy(lvar))
-
-  # empty rows
-  row_cnt = zeros(Int, ncon)
+  row_cnt = Vector{Int}(undef, ncon)
   kept_rows = fill(true, ncon)
+  kept_cols = fill(true, nvar)
+  nconps = ncon
+  nvarps = nvar
+  xps = S(undef, nvar)
+
+  ## while
+  resize!(row_cnt, nconps)
+  row_cnt .= 0
   row_cnt!(psdata.A.rows, row_cnt) # number of coefficients per row
+  # empty rows
   empty_rows = find_empty_rows(row_cnt) # indices of the empty rows
   if length(empty_rows) > 0
     empty_row_pass = true
-    update_kept_rows!(kept_rows, empty_rows)
+    update_kept_v!(kept_rows, empty_rows, ncon)
     Arows_sortperm = sortperm(psdata.A.rows) # permute rows 
     Arows_s = @views psdata.A.rows[Arows_sortperm]
     nconps = empty_rows!(psdata.A.rows, lcon, ucon, ncon, row_cnt, empty_rows, Arows_s)
@@ -98,7 +108,7 @@ function presolve(
   singl_rows = find_singleton_rows(row_cnt) # indices of the singleton rows
   if length(singl_rows) > 0
     singl_row_pass = true
-    update_kept_rows!(kept_rows, singl_rows)
+    update_kept_v!(kept_rows, singl_rows, ncon)
     nconps = singleton_rows!(
       psdata.A.rows,
       psdata.A.cols,
@@ -120,12 +130,12 @@ function presolve(
   # remove fixed variables
   ifix = findall(lvar .== uvar)
   if length(ifix) > 0
-    xrm, psdata.c0, nvarps = remove_ifix!(
+    psdata.c0, nvarps = remove_ifix!(
       ifix,
       psdata.H.rows,
       psdata.H.cols,
       psdata.H.vals,
-      nvar,
+      nvarps,
       psdata.A.rows,
       psdata.A.cols,
       psdata.A.vals,
@@ -135,11 +145,13 @@ function presolve(
       uvar,
       lcon,
       ucon,
+      kept_cols,
+      xps,
+      nvar,
     )
-  else
-    nvarps = nvar
-    xrm = S(undef, 0)
   end
+
+  ## end
 
   # form meta
   nnzh = length(psdata.H.vals)
@@ -152,8 +164,8 @@ function presolve(
   end
 
   if nvarps == 0
-    feasible = all(qm.meta.lcon .<= qm.data.A * xrm .<= qm.meta.ucon)
-    s = qm.data.c .+ Symmetric(qm.data.H, :L) * xrm
+    feasible = all(qm.meta.lcon .<= qm.data.A * xps .<= qm.meta.ucon)
+    s = qm.data.c .+ Symmetric(qm.data.H, :L) * xps
     i_l = findall(s .> zero(T))
     s_l = sparsevec(i_l, s[i_l])
     i_u = findall(s .< zero(T))
@@ -161,8 +173,8 @@ function presolve(
     return GenericExecutionStats(
       feasible ? :first_order : :infeasible,
       qm,
-      solution = xrm,
-      objective = obj(qm, xrm),
+      solution = xps,
+      objective = obj(qm, xps),
       multipliers = zeros(T, nconps),
       multipliers_L = s_l,
       multipliers_U = s_u,
@@ -185,7 +197,7 @@ function presolve(
       minimize = qm.meta.minimize,
       kwargs...,
     )
-    psd = PresolvedData{T, S}(ifix, xrm, kept_rows, nconps)
+    psd = PresolvedData{T, S}(xps, kept_rows, kept_cols, nconps, nvarps)
     ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
     return GenericExecutionStats(
       :unknown,
@@ -207,17 +219,12 @@ function postsolve!(
   s_l::SparseVector{T, Int},
   s_u::SparseVector{T, Int},
 ) where {T, S}
-  ifix = psqm.psd.ifix
-  if length(ifix) > 0
-    restore_ifix!(ifix, psqm.psd.xrm, x_in, x_out)
-  else
-    x_out .= @views x_in[1:(qm.meta.nvar)]
-  end
+  restore_ifix!(psqm.psd.kept_cols, psqm.psd.xps, x_in, x_out)
   ncon = length(y_out)
   restore_y!(y_in, y_out, psqm.psd.kept_rows, ncon)
 
   ilow, iupp = s_l.nzind, s_u.nzind
-  restore_ilow_iupp!(ilow, iupp, ifix)
+  restore_ilow_iupp!(ilow, iupp, psqm.psd.kept_cols)
   s_l_out = SparseVector(qm.meta.nvar, ilow, s_l.nzval)
   s_u_out = SparseVector(qm.meta.nvar, iupp, s_u.nzval)
   return s_l_out, s_u_out

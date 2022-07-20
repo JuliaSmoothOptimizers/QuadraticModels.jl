@@ -48,7 +48,6 @@
   @test norm(Aps - sparse(Aps_true)) ≤ sqrt(eps(T))
   @test psqp.meta.lvar == lvarps_true
   @test psqp.meta.uvar == uvarps_true
-  @test psqp.psd.xrm == [2.0]
   @test psqp.meta.ifix == Int[]
   @test psqp.meta.nvar == 2
 
