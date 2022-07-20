@@ -20,7 +20,7 @@ function remove_ifix!(
   Hrows,
   Hcols,
   Hvals,
-  nvar,
+  nvarps,
   Arows,
   Acols,
   Avals,
@@ -30,6 +30,9 @@ function remove_ifix!(
   uvar,
   lcon,
   ucon,
+  kept_cols,
+  xps,
+  nvar,
 ) where {T}
 
   # assume Hcols is sorted
@@ -57,7 +60,7 @@ function remove_ifix!(
     end
     # remove ifix in H and update data
     k = 1
-    while k <= Hnnz && Hcols[k] <= (nvar - idxfix + 1)
+    while k <= Hnnz && Hcols[k] <= (nvarps - idxfix + 1)
       Hi, Hj, Hx = Hrows[k], Hcols[k], Hvals[k] # Hj sorted 
 
       while (Hj == oldHj) && shiftHj <= idxfix - 1 && Hj + shiftHj - 1 >= ifix[shiftHj]
@@ -125,7 +128,19 @@ function remove_ifix!(
   end
 
   # store removed x values
-  xrm = lvar[ifix]
+  offset = 0
+  c_cols = 1
+  for i = 1:nvar
+    if !kept_cols[i]
+      offset += 1
+    else
+      if c_cols ≤ nfix && ifix[c_cols] + offset == i
+        kept_cols[i] = false
+        xps[i] = lvar[ifix[c_cols]]
+        c_cols += 1
+      end
+    end
+  end
 
   # remove coefs in lvar, uvar, c
   deleteat!(c, ifix)
@@ -135,7 +150,7 @@ function remove_ifix!(
   # update c0
   c0ps = c0 + c0_offset
 
-  nvarrm = nvar - nfix
+  nvarrm = nvarps - nfix
 
-  return xrm, c0ps, nvarrm
+  return c0ps, nvarrm
 end

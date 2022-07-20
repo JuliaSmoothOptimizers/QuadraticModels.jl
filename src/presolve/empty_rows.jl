@@ -1,17 +1,7 @@
-function row_cnt!(Arows, row_cnt::Vector{Int})
-  for k = 1:length(Arows)
-    i = Arows[k]
-    row_cnt[i] += 1
-  end
-end
-
-find_empty_rows(row_cnt::Vector{Int}) = findall(isequal(0), row_cnt)
-
 """
-    new_ncon = empty_rows!(Arows, lcon, ucon, ncon, row_cnt, empty_rows, Arows_s)
+    new_ncon = empty_rows!(Arows, lcon, ucon, ncon, row_cnt, empty_rows)
 
 Removes the empty rows of A, and the corresponding elements in lcon and ucon that are in `empty_rows`.
-`Arows_s` is a view of `Arows` sorted in ascending order.
 `row_cnt` is a vector of the number of elements per row.
 
 Returns the new number of constraints `new_ncon` and updates in-place `Arows`, `lcon`, `ucon`.
@@ -23,7 +13,6 @@ function empty_rows!(
   ncon,
   row_cnt::Vector{Int},
   empty_rows::Vector{Int},
-  Arows_s,
 ) where {T}
   new_ncon = 0
   for i = 1:ncon
@@ -38,13 +27,25 @@ function empty_rows!(
   resize!(lcon, new_ncon)
   resize!(ucon, new_ncon)
 
-  c_rm = 1
-  nrm = length(empty_rows)
-  for k = 1:length(Arows)
-    while c_rm ≤ nrm && Arows_s[k] ≥ empty_rows[c_rm]
-      c_rm += 1
+  # assume Acols is sorted
+  Annz = length(Arows)
+  nempty = length(empty_rows)
+
+  for idxempty = 1:nempty
+    currentiempty = empty_rows[idxempty]
+    # index of the current singleton row that takes the number of 
+    # already removed variables into account:
+    newcurrentiempty = currentiempty - idxempty + 1
+
+    # remove singleton rows in A rows
+    Awritepos = 1
+    k = 1
+    while k <= Annz
+      Ai = Arows[k]
+      Arows[Awritepos] = (Ai < newcurrentiempty) ? Ai : Ai - 1
+      Awritepos += 1
+      k += 1
     end
-    Arows_s[k] -= c_rm - 1
   end
   return new_ncon
 end

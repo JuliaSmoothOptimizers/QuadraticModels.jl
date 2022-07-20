@@ -1,14 +1,13 @@
-function restore_ifix!(ifix, xrm, x, xout)
-  # put x and xrm inside xout
-  cfix, cx = 1, 1
-  nfix = length(ifix)
-  for i = 1:length(xout)
-    if cfix <= nfix && i == ifix[cfix]
-      xout[i] = xrm[cfix]
-      cfix += 1
-    else
-      xout[i] = x[cx]
+function restore_ifix!(kept_cols, xps, x, xout)
+  # put x and xps inside xout according to kept_cols
+  nvar = length(xout)
+  cx = 0
+  for i=1:nvar
+    if kept_cols[i]
       cx += 1
+      xout[i] = x[cx]
+    else
+      xout[i] = xps[i]
     end
   end
 end
@@ -25,24 +24,23 @@ function restore_y!(y::Vector{T}, yout::Vector{T}, kept_rows::Vector{Bool}, ncon
   end
 end
 
-function restore_ilow_iupp!(ilow, iupp, ifix)
-  c_fix = 1
-  nfix = length(ifix)
-
+function restore_ilow_iupp!(ilow, iupp, kept_cols)
+  offset = 0
+  nvar = length(kept_cols)
   nlow = length(ilow)
-  for i = 1:nlow
-    while c_fix ≤ nfix && ilow[i] ≤ ifix[c_fix]
-      c_fix += 1
-    end
-    ilow[i] += c_fix - 1
-  end
-
-  c_fix = 1
   nupp = length(iupp)
-  for i = 1:nupp
-    while c_fix ≤ nfix && iupp[i] ≤ ifix[c_fix]
-      c_fix += 1
+  c_low, c_upp = 1, 1
+  for i = 1:nvar
+    if kept_cols[i] == false
+      offset += 1
+    end 
+    if c_low ≤ nlow && ilow[c_low] + offset == i
+      ilow[c_low] += 1
+      c_low += 1
     end
-    iupp[i] += c_fix - 1
+    if c_upp ≤ nupp && iupp[c_upp] + offset == i
+      iupp[c_upp] += 1
+      c_upp += 1
+    end
   end
 end

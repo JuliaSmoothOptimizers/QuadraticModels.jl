@@ -36,19 +36,17 @@
   ]
   Aps_true = [
     1.0 1.0
-    0.0 1.0
   ]
   lvarps_true, uvarps_true = [0.0; 0.0], [Inf; Inf]
 
   @test psqp.data.c == [-4.0; 1.0]
   @test psqp.data.c0 == 4.0
-  Hps = sparse(psqp.data.H.rows, psqp.data.H.cols, psqp.data.H.vals, psqp.meta.ncon, psqp.meta.nvar)
+  Hps = sparse(psqp.data.H.rows, psqp.data.H.cols, psqp.data.H.vals, psqp.meta.nvar, psqp.meta.nvar)
   @test norm(Symmetric(Hps, :L) - sparse(Hps_true)) ≤ sqrt(eps(T))
   Aps = sparse(psqp.data.A.rows, psqp.data.A.cols, psqp.data.A.vals, psqp.meta.ncon, psqp.meta.nvar)
   @test norm(Aps - sparse(Aps_true)) ≤ sqrt(eps(T))
   @test psqp.meta.lvar == lvarps_true
   @test psqp.meta.uvar == uvarps_true
-  @test psqp.psd.xrm == [2.0]
   @test psqp.meta.ifix == Int[]
   @test psqp.meta.nvar == 2
 
@@ -211,20 +209,7 @@ end
   statsps = presolve(qp)
   psqp = statsps.solver_specific[:presolvedQM]
 
-  Aps_true = [
-    0.0 1.0
-    2.0 1.0
-  ]
-
-  Aps = sparse(psqp.data.A.rows, psqp.data.A.cols, psqp.data.A.vals, psqp.meta.ncon, psqp.meta.nvar)
-  @test Aps == sparse(Aps_true)
-  @test psqp.meta.ncon == 2
-
-  x_in = [7.0; 4.0]
-  y_in = [2.0; 4.0]
-  s_l = sparse([4.0; 2.0])
-  s_u = sparse([3.0; 0.0])
-  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test y_out == [2.0; 0.0; 0.0; 0.0; 0.0; 4.0]
-  @test x_out == [4.0 / 3.0; 7.0; 4.0]
+  @test statsps.status == :first_order
+  @test statsps.solution ≈ [4.0 / 3.0; 7.0 / 6.0; 2.0 / 3.0]
+  @test statsps.multipliers == zeros(length(b))
 end
