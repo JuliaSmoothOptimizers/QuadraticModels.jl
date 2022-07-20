@@ -30,6 +30,7 @@ The presolve operations currently implemented are:
 
 - [`empty_rows!`](@ref) : remove empty rows
 - [`singleton_rows!`](@ref) : remove singleton rows
+- [`unconstrained_reductions!`](@ref) : fix linearly unconstrained variables (lps)
 - [`remove_ifix!`](@ref) : remove fixed variables
 
 The `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}` is located in the `solver_specific` field:

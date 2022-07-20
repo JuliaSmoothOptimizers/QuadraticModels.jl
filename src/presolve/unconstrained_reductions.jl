@@ -1,4 +1,11 @@
 # apply before remove ifix
+"""
+    unbounded = unconstrained_reductions!(c, Hrows, Hcols, Hvals, lvar, uvar,
+                                          xps, lin_unconstr_vars)
+
+Fix linearly unconstrained variables, updating the corresponding elements of `xps`.
+This only works for linear problems for now, but can be extended to some specific quadratic problems.
+"""
 function unconstrained_reductions!(
   c::AbstractVector{T},
   Hrows,
@@ -15,7 +22,6 @@ function unconstrained_reductions!(
     # check diagonal H or 
     idx_deb = findfirst(isequal(var), Hcols)
     if idx_deb === nothing
-      println("pass1")
       if c[var] < zero(T) 
         xps[var] = uvar[var]
         lvar[var] = uvar[var]
