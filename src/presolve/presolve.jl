@@ -11,6 +11,7 @@ mutable struct PresolvedData{T, S}
   kept_cols::Vector{Bool}
   nconps::Int
   nvarps::Int
+  operations_history::Vector{Int}
 end
 
 mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
@@ -61,8 +62,8 @@ function presolve(
   # copy if same vector
   lcon === ucon && (lcon = copy(lcon))
   lvar === uvar && (lvar = copy(lvar))
-  row_cnt = Vector{Int}(undef, ncon)
-  col_cnt = Vector{Int}(undef, nvar)
+  row_cnt = zeros(Int, ncon)
+  col_cnt = zeros(Int, nvar)
   kept_rows = fill(true, ncon)
   kept_cols = fill(true, nvar)
   nconps = ncon
@@ -71,33 +72,34 @@ function presolve(
   nb_pass = 1
   keep_iterating = true
   unbounded = false
+  # history:
+  # 1 empty rows
+  # 2 singleton rows
+  # 3 linearly unconstrained variables
+  # 4 fixed variables
+  operations_history = Int[]
+
+  # number of coefficients per row
+  vec_cnt!(row_cnt, psdata.A.rows)
+  # number of coefficients per col
+  vec_cnt!(col_cnt, psdata.A.cols)
 
   while keep_iterating
-    resize!(row_cnt, nconps)
-    row_cnt .= 0
-    vec_cnt!(psdata.A.rows, row_cnt) # number of coefficients per row
 
     # empty rows
     empty_rows = find_empty_rowscols(row_cnt) # indices of the empty rows
-    if length(empty_rows) > 0
+    if !isempty(empty_rows)
       empty_row_pass = true
-      update_kept_v!(kept_rows, empty_rows, ncon)
-      nconps = empty_rows!(psdata.A.rows, lcon, ucon, nconps, row_cnt, empty_rows)
+      empty_rows!(lcon, ucon, empty_rows, row_cnt, kept_rows)
+      push!(operations_history, 1)
     else
       empty_row_pass = false
     end
 
-    # remove singleton rows
-    if empty_row_pass
-      resize!(row_cnt, nconps)
-      row_cnt .= 0
-      vec_cnt!(psdata.A.rows, row_cnt) # number of coefficients per rows
-    end
     singl_rows = find_singleton_rowscols(row_cnt) # indices of the singleton rows
-    if length(singl_rows) > 0
+    if !isempty(singl_rows)
       singl_row_pass = true
-      update_kept_v!(kept_rows, singl_rows, ncon)
-      nconps = singleton_rows!(
+      singleton_rows!(
         psdata.A.rows,
         psdata.A.cols,
         psdata.A.vals,
@@ -105,20 +107,19 @@ function presolve(
         ucon,
         lvar,
         uvar,
-        nvarps,
-        nconps,
-        row_cnt,
         singl_rows,
+        row_cnt,
+        col_cnt,
+        kept_rows,
       )
+      push!(operations_history, 2)
     else
       singl_row_pass = false
     end
 
     # unconstrained reductions
-    col_cnt .= 0
-    vec_cnt!(psdata.A.cols, col_cnt) # number of coefficients per row
-    lin_unconstr_vars = find_empty_rowscols(col_cnt) # indices of the singleton rows
-    if length(lin_unconstr_vars) > 0
+    lin_unconstr_vars = find_empty_rowscols(col_cnt) # indices of the singleton cols
+    if !isempty(lin_unconstr_vars)
       unbounded = unconstrained_reductions!(
         c,
         psdata.H.rows,
@@ -129,13 +130,14 @@ function presolve(
         xps,
         lin_unconstr_vars,
       )
+      push!(operations_history, 3)
     end
 
     # remove fixed variables
-    ifix = findall(lvar .== uvar)
-    if length(ifix) > 0
+    ifix = find_fixed_variables(lvar, uvar, kept_cols)
+    if !isempty(ifix)
       ifix_pass = true
-      psdata.c0, nvarps = remove_ifix!(
+      psdata.c0 = remove_ifix!(
         ifix,
         psdata.H.rows,
         psdata.H.cols,
@@ -147,20 +149,26 @@ function presolve(
         c,
         psdata.c0,
         lvar,
-        uvar,
         lcon,
         ucon,
+        row_cnt,
+        col_cnt,
         kept_cols,
         xps,
-        nvar,
       )
-      resize!(col_cnt, nvarps)
+      push!(operations_history, 4)
     else
       ifix_pass = false
     end
 
     keep_iterating = (empty_row_pass || singl_row_pass || ifix_pass) && !unbounded
     keep_iterating && (nb_pass += 1)
+  end
+
+  if !isempty(operations_history)
+    remove_rowscols_A!(psdata.A.rows, psdata.A.cols, psdata.A.vals, kept_rows, kept_cols, nvar, ncon)
+    remove_rowscols_H!(psdata.H.rows, psdata.H.cols, psdata.H.vals, kept_cols, nvar)
+    nconps, nvarps = update_vectors!(lcon, ucon, c, lvar, uvar, kept_rows, kept_cols, ncon, nvar)
   end
 
   # form meta
@@ -216,7 +224,7 @@ function presolve(
       minimize = qm.meta.minimize,
       kwargs...,
     )
-    psd = PresolvedData{T, S}(xps, kept_rows, kept_cols, nconps, nvarps)
+    psd = PresolvedData{T, S}(xps, kept_rows, kept_cols, nconps, nvarps, operations_history)
     ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
     return GenericExecutionStats(
       :unknown,
