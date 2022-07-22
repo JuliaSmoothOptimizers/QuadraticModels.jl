@@ -18,23 +18,26 @@ function unconstrained_reductions!(
   lvar::S,
   uvar::S,
   xps::S,
-  lin_unconstr_vars,
+  nvar,
+  col_cnt,
+  kept_cols,
 ) where {T, S}
   unbounded = false
   # assume Hcols sorted
-  for var in lin_unconstr_vars
+  for j in 1:nvar
+    (kept_cols[j] && (col_cnt[j] == 0)) || continue 
     # check diagonal H or 
-    idx_deb = findfirst(isequal(var), Hcols)
+    idx_deb = findfirst(isequal(j), Hcols)
     if idx_deb === nothing
-      if c[var] < zero(T)
-        xps[var] = uvar[var]
-        lvar[var] = uvar[var]
+      if c[j] < zero(T)
+        xps[j] = uvar[j]
+        lvar[j] = uvar[j]
       else
-        xps[var] = lvar[var]
-        uvar[var] = lvar[var]
+        xps[j] = lvar[j]
+        uvar[j] = lvar[j]
       end
-      xps[var] == -T(Inf) && (unbounded = true)
-      push!(operations, UnconstrainedReduction{T, S}(var))
+      xps[j] == -T(Inf) && (unbounded = true)
+      push!(operations, UnconstrainedReduction{T, S}(j))
     else
       continue
       # todo : QP 

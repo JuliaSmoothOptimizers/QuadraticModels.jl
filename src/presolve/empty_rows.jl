@@ -13,16 +13,20 @@ function empty_rows!(
   operations::Vector{PresolveOperation{T, S}},
   lcon::S,
   ucon::S,
-  empty_rows::Vector{Int},
+  ncon,
   row_cnt,
   kept_rows::Vector{Bool},
 ) where {T, S}
-  kept_rows[empty_rows] .= false
-  for i in empty_rows
-    (!kept_rows[i]) && @assert (lcon[i] ≤ zero(T) ≤ ucon[i])
+  empty_row_pass = false
+  for i=1:ncon
+    (kept_rows[i] && (row_cnt[i] == 0)) || continue
+    empty_row_pass = true
+    @assert (lcon[i] ≤ zero(T) ≤ ucon[i])
+    row_cnt[i] = -1
+    kept_rows[i] = false
     push!(operations, EmptyRow{T, S}(i))
   end
-  row_cnt[empty_rows] .= -1
+  return empty_row_pass
 end
 
 postsolve!(pt::OutputPoint, operation::EmptyRow) = nothing

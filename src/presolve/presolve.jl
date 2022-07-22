@@ -91,51 +91,39 @@ function presolve(
   while keep_iterating
 
     # empty rows
-    empty_rows = find_empty_rowscols(row_cnt) # indices of the empty rows
-    if !isempty(empty_rows)
-      empty_row_pass = true
-      empty_rows!(operations, lcon, ucon, empty_rows, row_cnt, kept_rows)
-    else
-      empty_row_pass = false
-    end
+    empty_row_pass = empty_rows!(operations, lcon, ucon, ncon, row_cnt, kept_rows)
 
-    singl_rows = find_singleton_rowscols(row_cnt) # indices of the singleton rows
-    if !isempty(singl_rows)
-      singl_row_pass = true
-      singleton_rows!(
-        operations,
-        psdata.A.rows,
-        psdata.A.cols,
-        psdata.A.vals,
-        lcon,
-        ucon,
-        lvar,
-        uvar,
-        singl_rows,
-        row_cnt,
-        col_cnt,
-        kept_rows,
-        kept_cols,
-      )
-    else
-      singl_row_pass = false
-    end
+    # singleton rows
+    singl_row_pass = singleton_rows!(
+      operations,
+      psdata.A.rows,
+      psdata.A.cols,
+      psdata.A.vals,
+      lcon,
+      ucon,
+      lvar,
+      uvar,
+      ncon,
+      row_cnt,
+      col_cnt,
+      kept_rows,
+      kept_cols,
+    )
 
     # unconstrained reductions
-    lin_unconstr_vars = find_empty_rowscols(col_cnt) # indices of the singleton cols
-    if !isempty(lin_unconstr_vars)
-      unbounded = unconstrained_reductions!(
-        operations,
-        c,
-        psdata.H.rows,
-        psdata.H.cols,
-        psdata.H.vals,
-        lvar,
-        uvar,
-        xps,
-        lin_unconstr_vars,
-      )
-    end
+    unbounded = unconstrained_reductions!(
+      operations,
+      c,
+      psdata.H.rows,
+      psdata.H.cols,
+      psdata.H.vals,
+      lvar,
+      uvar,
+      xps,
+      nvar,
+      col_cnt,
+      kept_cols,
+    )
 
     # remove fixed variables
     psdata.c0, ifix_pass = remove_ifix!(

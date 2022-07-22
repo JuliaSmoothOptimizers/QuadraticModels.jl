@@ -22,18 +22,19 @@ function singleton_rows!(
   ucon::S,
   lvar,
   uvar,
-  singl_rows::Vector{Int},
+  ncon,
   row_cnt,
   col_cnt,
   kept_rows,
   kept_cols,
 ) where {T, S}
-
   # assume Acols is sorted
   Annz = length(Arows)
-  nsingl = length(singl_rows)
+  singl_row_pass = false
 
-  for i in singl_rows
+  for i=1:ncon
+    (kept_rows[i] && (row_cnt[i] == 1)) || continue
+    singl_row_pass = true
     k = 1
     tightened_lvar = false
     tightened_uvar = false
@@ -66,10 +67,11 @@ function singleton_rows!(
       end
       k += 1
     end
+    row_cnt[i] = -1
+    kept_rows[i] = false
     push!(operations, SingletonRow{T, S}(i, j, Ax, tightened_lvar, tightened_uvar))
   end
-  row_cnt[singl_rows] .= -1
-  kept_rows[singl_rows] .= false
+  return singl_row_pass
 end
 
 function postsolve!(pt::OutputPoint{T, S}, operation::SingletonRow{T, S}) where {T, S}
