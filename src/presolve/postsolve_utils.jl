@@ -1,18 +1,15 @@
-function restore_ifix!(kept_cols, xps, x, xout)
+function restore_x!(kept_cols, xin::S, xout::S, nvar) where S
   # put x and xps inside xout according to kept_cols
-  nvar = length(xout)
   cx = 0
   for i = 1:nvar
     if kept_cols[i]
       cx += 1
-      xout[i] = x[cx]
-    else
-      xout[i] = xps[i]
+      xout[i] = xin[cx]
     end
   end
 end
 
-function restore_y!(y::Vector{T}, yout::Vector{T}, kept_rows::Vector{Bool}, ncon) where {T}
+function restore_y!(kept_rows::Vector{Bool}, y::Vector{T}, yout::Vector{T}, ncon) where {T}
   c_y = 0
   for i = 1:ncon
     if !kept_rows[i]

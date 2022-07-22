@@ -1,3 +1,11 @@
+struct SingletonRow{T, S} <: PresolveOperation{T, S}
+  i::Int # idx of singleton row
+  j::Int
+  Aij::T
+  tightened_lvar::Bool
+  tightened_uvar::Bool
+end
+
 """
     singleton_rows!(Arows, Acols, Avals, lcon, ucon,
                     lvar, uvar, nvar, ncon, row_cnt, singl_rows,
@@ -6,44 +14,77 @@
 Presolve procedure for singleton rows of A in `singl_rows`.
 """
 function singleton_rows!(
+  operations::Vector{PresolveOperation{T, S}},
   Arows,
   Acols,
   Avals,
-  lcon::Vector{T},
-  ucon::Vector{T},
+  lcon::S,
+  ucon::S,
   lvar,
   uvar,
   singl_rows::Vector{Int},
   row_cnt,
   col_cnt,
   kept_rows,
-) where {T}
+  kept_cols,
+) where {T, S}
 
   # assume Acols is sorted
   Annz = length(Arows)
   nsingl = length(singl_rows)
 
-  # remove ifix 1 by 1 in H and A and update QP data
-  for idxsingl = 1:nsingl
-    currentisingl = singl_rows[idxsingl]
+  for i in singl_rows
     k = 1
-    while k <= Annz - idxsingl + 1
+    tightened_lvar = false
+    tightened_uvar = false
+    j = 0
+    Ax = T(Inf)
+    found_singl = false
+    while k <= Annz && !found_singl
       Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
-      if Ai == currentisingl
+      if Ai == i && kept_cols[Aj]
+        found_singl = true
+        j = Aj
         col_cnt[Aj] -= 1
         if Ax > zero(T)
-          lvar[Aj] = max(lvar[Aj], lcon[currentisingl] / Ax)
-          uvar[Aj] = min(uvar[Aj], ucon[currentisingl] / Ax)
+          lvar2 = lcon[i] / Ax
+          uvar2 = ucon[i] / Ax
         elseif Ax < zero(T)
-          lvar[Aj] = max(lvar[Aj], ucon[currentisingl] / Ax)
-          uvar[Aj] = min(uvar[Aj], lcon[currentisingl] / Ax)
+          uvar2 = lcon[i] / Ax
+          lvar2 = ucon[i] / Ax
         else
           error("remove explicit zeros in A")
+        end
+        if lvar[Aj] < lvar2
+          lvar[Aj] = lvar2
+          tightened_lvar = true
+        end
+        if uvar[Aj] > uvar2
+          uvar[Aj] = uvar2
+          tightened_uvar = true
         end
       end
       k += 1
     end
+    push!(operations, SingletonRow{T, S}(i, j, Ax, tightened_lvar, tightened_uvar))
   end
   row_cnt[singl_rows] .= -1
   kept_rows[singl_rows] .= false
+end
+
+function postsolve!(pt::OutputPoint{T, S}, operation::SingletonRow{T, S}) where {T, S}
+  i, j = operation.i, operation.j
+  dual_slack = -pt.s_l[j] + pt.s_u[j]
+  Aij = operation.Aij
+  if operation.tightened_lvar
+    pt.y[i] = dual_slack / Aij
+    pt.s_l[j] = zero(T)
+  end
+  if operation.tightened_uvar
+    pt.y[i] = dual_slack / Aij
+    pt.s_u[j] = zero(T)
+  end
+  if !operation.tightened_lvar && !operation.tightened_uvar
+    pt.y[i] = zero(T)
+  end
 end

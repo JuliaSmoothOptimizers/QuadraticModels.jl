@@ -52,8 +52,8 @@
   y_in = [2.0; 2.0]
   s_l = sparse([3.0; 2.0])
   s_u = sparse([0.0; 0.0])
-  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test x_out == [4.0; 2.0; 7.0]
+  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
+  @test pt_out.x == [4.0; 2.0; 7.0]
 
   # test that solves the problem
   qp2 = QuadraticModel(
@@ -117,8 +117,8 @@ end
   y_in = [2.0; 2.0; 4.0]
   s_l = sparse([3.0; 4.0; 2.0])
   s_u = sparse([0.0; 3.0; 0.0])
-  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test y_out == [2.0; 0.0; 0.0; 2.0; 0.0; 4.0]
+  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
+  @test pt_out.y == [2.0; 0.0; 0.0; 2.0; 0.0; 4.0]
 end
 
 @testset "presolve singleton rows" begin
@@ -169,8 +169,8 @@ end
   y_in = [2.0; 4.0]
   s_l = sparse([3.0; 4.0; 2.0])
   s_u = sparse([0.0; 3.0; 0.0])
-  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test y_out == [2.0; 0.0; 0.0; 0.0; 0.0; 4.0]
+  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
+  @test pt_out.y == [2.0; 0.0; 0.0; 0.0; 0.0; 4.0]
 end
 
 @testset "presolve singleton rows and ifix" begin
