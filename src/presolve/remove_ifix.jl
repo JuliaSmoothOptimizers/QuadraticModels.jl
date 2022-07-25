@@ -16,12 +16,8 @@ Presolve procedure to remove fixed variables to `lvar` at indices `ifix`.
 """
 function remove_ifix!(
   operations::Vector{PresolveOperation{T, S}},
-  Hrows,
-  Hcols,
-  Hvals::S,
-  Arows,
-  Acols,
-  Avals::S,
+  hcols::Vector{Col{T}},
+  acols::Vector{Col{T}},
   c::S,
   c0::T,
   lvar::S,
@@ -31,47 +27,40 @@ function remove_ifix!(
   nvar,
   row_cnt,
   col_cnt,
+  kept_rows,
   kept_cols,
   xps,
 ) where {T, S}
 
   ifix_pass = false
-  # assume Hcols is sorted
   c0_offset = zero(T)
-  Hnnz = length(Hrows)
-  Annz = length(Arows)
 
   for j = 1:nvar
     (kept_cols[j] && (lvar[j] == uvar[j])) || continue
     ifix_pass = true
     xj = lvar[j]
-    k = 1
-    while k <= Hnnz
-      Hi, Hj, Hx = Hrows[k], Hcols[k], Hvals[k] # Hj sorted 
-      if Hi == Hj == j
+    for k in 1:length(hcols[j].nzind)
+      i = hcols[j].nzind[k]
+      Hx = hcols[j].nzval[k]
+      if i == j
         c0_offset += xj^2 * Hx / 2
-      elseif Hi == j
-        c[Hj] += xj * Hx
-      elseif Hj == j
-        c[Hi] += xj * Hx
+      else
+        kept_cols[i] && (c[i] += xj * Hx)
       end
-      k += 1
     end
 
     # remove ifix in A cols
-    k = 1
-    while k <= Annz
-      Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
-      if Aj == j
-        row_cnt[Ai] -= 1
-        con_offset = Ax * xj
-        lcon[Ai] -= con_offset
-        ucon[Ai] -= con_offset
+    for k in 1:length(acols[j].nzind)
+      i = acols[j].nzind[k]
+      if kept_rows[i]
+        row_cnt[i] -= 1
+        con_offset = acols[j].nzval[k] * xj
+        lcon[i] -= con_offset
+        ucon[i] -= con_offset
       end
-      k += 1
     end
 
-    # update c0 with c[currentifix] coeff
+    # update c0 with c[j] coeff
     c0_offset += c[j] * xj
     xps[j] = xj
     kept_cols[j] = false

@@ -7,6 +7,63 @@ mutable struct OutputPoint{T, S}
   s_u::SparseVector{T, Int}
 end
 
+mutable struct Row{T}
+  nzind::Vector{Int}
+  nzval::Vector{T}
+end
+
+mutable struct Col{T}
+  nzind::Vector{Int}
+  nzval::Vector{T}
+end
+
+function get_arows_acols(A::SparseMatrixCOO{T}, row_cnt, col_cnt, nvar, ncon) where {T}
+  Arows, Acols, Avals = A.rows, A.cols, A.vals
+  cnt_vec_rows = ones(Int, ncon)
+  arows = [Row{T}(zeros(Int, row_cnt[i]), fill(T(Inf), row_cnt[i])) for i in 1:ncon]
+  for k in 1:length(Arows)
+    i, j, Ax = Arows[k], Acols[k], Avals[k]
+    arows[i].nzind[cnt_vec_rows[i]] = j
+    arows[i].nzval[cnt_vec_rows[i]] = Ax
+    cnt_vec_rows[i] += 1
+  end
+
+  cnt_vec_cols = ones(Int, nvar)
+  acols = [Col{T}(zeros(Int, col_cnt[j]), fill(T(Inf), col_cnt[j])) for j in 1:nvar]
+  for k in 1:length(Arows)
+    i, j, Ax = Arows[k], Acols[k], Avals[k]
+    acols[j].nzind[cnt_vec_cols[j]] = i
+    acols[j].nzval[cnt_vec_cols[j]] = Ax
+    cnt_vec_cols[j] += 1
+  end
+  return arows, acols
+end
+
+function get_hcols(H::SparseMatrixCOO{T}, nvar) where {T}
+  Hrows, Hcols, Hvals = H.rows, H.cols, H.vals
+  hcol_cnt = zeros(Int, nvar)
+  for k in 1:length(Hrows)
+    i, j = Hrows[k], Hcols[k]
+    hcol_cnt[i] += 1
+    (i != j) && (hcol_cnt[j] += 1)
+  end
+  hcols = [Col{T}(zeros(Int, hcol_cnt[i]), fill(T(Inf), hcol_cnt[i])) for i in 1:nvar]
+
+  cnt_vec_cols = ones(Int, nvar)
+  for k in 1:length(Hrows)
+    i, j, Hx = Hrows[k], Hcols[k], Hvals[k]
+    hcols[j].nzind[cnt_vec_cols[j]] = i
+    hcols[j].nzval[cnt_vec_cols[j]] = Hx
+    cnt_vec_cols[j] += 1
+    if i != j
+      hcols[i].nzind[cnt_vec_cols[i]] = j
+      hcols[i].nzval[cnt_vec_cols[i]] = Hx
+      cnt_vec_cols[i] += 1
+    end
+  end
+  return hcols
+end
+
 include("presolve_utils.jl")
 include("remove_ifix.jl")
 include("empty_rows.jl")
@@ -88,17 +145,19 @@ function presolve(
   # number of coefficients per col
   vec_cnt!(col_cnt, psdata.A.cols)
 
-  while keep_iterating
+  # get list of rows and list of columns of A
+  arows, acols = get_arows_acols(psdata.A, row_cnt, col_cnt, nvar, ncon)
+  # get list of columns of H
+  hcols = get_hcols(psdata.H, nvar)
 
+  while keep_iterating
     # empty rows
     empty_row_pass = empty_rows!(operations, lcon, ucon, ncon, row_cnt, kept_rows)
 
     # singleton rows
     singl_row_pass = singleton_rows!(
       operations,
-      psdata.A.rows,
-      psdata.A.cols,
-      psdata.A.vals,
+      arows,
       lcon,
       ucon,
       lvar,
@@ -114,9 +173,7 @@ function presolve(
     unbounded = unconstrained_reductions!(
       operations,
       c,
-      psdata.H.rows,
-      psdata.H.cols,
-      psdata.H.vals,
+      hcols,
       lvar,
       uvar,
       xps,
@@ -128,12 +185,8 @@ function presolve(
     # remove fixed variables
     psdata.c0, ifix_pass = remove_ifix!(
       operations,
-      psdata.H.rows,
-      psdata.H.cols,
-      psdata.H.vals,
-      psdata.A.rows,
-      psdata.A.cols,
-      psdata.A.vals,
+      hcols,
+      acols,
       c,
       psdata.c0,
       lvar,
@@ -143,6 +196,7 @@ function presolve(
       nvar,
       row_cnt,
       col_cnt,
+      kept_rows,
       kept_cols,
       xps,
     )

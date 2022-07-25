@@ -15,9 +15,7 @@ Presolve procedure for singleton rows of A in `singl_rows`.
 """
 function singleton_rows!(
   operations::Vector{PresolveOperation{T, S}},
-  Arows,
-  Acols,
-  Avals,
+  arows::Vector{Row{T}},
   lcon::S,
   ucon::S,
   lvar,
@@ -29,44 +27,43 @@ function singleton_rows!(
   kept_cols,
 ) where {T, S}
   # assume Acols is sorted
-  Annz = length(Arows)
   singl_row_pass = false
 
   for i=1:ncon
     (kept_rows[i] && (row_cnt[i] == 1)) || continue
     singl_row_pass = true
-    k = 1
     tightened_lvar = false
     tightened_uvar = false
     j = 0
     Ax = T(Inf)
-    found_singl = false
-    while k <= Annz && !found_singl
-      Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
-      if Ai == i && kept_cols[Aj]
-        found_singl = true
-        j = Aj
-        col_cnt[Aj] -= 1
-        if Ax > zero(T)
-          lvar2 = lcon[i] / Ax
-          uvar2 = ucon[i] / Ax
-        elseif Ax < zero(T)
-          uvar2 = lcon[i] / Ax
-          lvar2 = ucon[i] / Ax
-        else
-          error("remove explicit zeros in A")
-        end
-        if lvar[Aj] < lvar2
-          lvar[Aj] = lvar2
-          tightened_lvar = true
-        end
-        if uvar[Aj] > uvar2
-          uvar[Aj] = uvar2
-          tightened_uvar = true
-        end
-      end
+    rowi = arows[i]
+    k = 1
+    j = rowi.nzind[k]
+    while !(kept_cols[j])
       k += 1
+      j = rowi.nzind[k]
     end
+    Ax = rowi.nzval[k]
+
+    col_cnt[j] -= 1
+    if Ax > zero(T)
+      lvar2 = lcon[i] / Ax
+      uvar2 = ucon[i] / Ax
+    elseif Ax < zero(T)
+      uvar2 = lcon[i] / Ax
+      lvar2 = ucon[i] / Ax
+    else
+      error("remove explicit zeros in A")
+    end
+    if lvar[j] < lvar2
+      lvar[j] = lvar2
+      tightened_lvar = true
+    end
+    if uvar[j] > uvar2
+      uvar[j] = uvar2
+      tightened_uvar = true
+    end
+
     row_cnt[i] = -1
     kept_rows[i] = false
     push!(operations, SingletonRow{T, S}(i, j, Ax, tightened_lvar, tightened_uvar))

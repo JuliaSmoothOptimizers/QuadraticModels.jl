@@ -12,9 +12,7 @@ This only works for linear problems for now, but can be extended to some specifi
 function unconstrained_reductions!(
   operations::Vector{PresolveOperation{T, S}},
   c::S,
-  Hrows,
-  Hcols,
-  Hvals::S,
+  hcols::Vector{Col{T}},
   lvar::S,
   uvar::S,
   xps::S,
@@ -26,9 +24,8 @@ function unconstrained_reductions!(
   # assume Hcols sorted
   for j in 1:nvar
     (kept_cols[j] && (col_cnt[j] == 0)) || continue 
-    # check diagonal H or 
-    idx_deb = findfirst(isequal(j), Hcols)
-    if idx_deb === nothing
+    # check empty rows/col j in H
+    if isempty(hcols[j].nzind)
       if c[j] < zero(T)
         xps[j] = uvar[j]
         lvar[j] = uvar[j]
