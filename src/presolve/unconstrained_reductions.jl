@@ -1,35 +1,33 @@
+struct UnconstrainedReduction{T, S} <: PresolveOperation{T, S}
+  j::Int
+end
 # apply before remove ifix
-"""
-    unbounded = unconstrained_reductions!(c, Hrows, Hcols, Hvals, lvar, uvar,
-                                          xps, lin_unconstr_vars)
-
-Fix linearly unconstrained variables, updating the corresponding elements of `xps`.
-This only works for linear problems for now, but can be extended to some specific quadratic problems.
-"""
 function unconstrained_reductions!(
-  c::AbstractVector{T},
-  Hrows,
-  Hcols,
-  Hvals::AbstractVector{T},
-  lvar::AbstractVector{T},
-  uvar::AbstractVector{T},
-  xps::AbstractVector{T},
-  lin_unconstr_vars,
-) where {T}
+  operations::Vector{PresolveOperation{T, S}},
+  c::S,
+  hcols::Vector{Col{T}},
+  lvar::S,
+  uvar::S,
+  xps::S,
+  nvar,
+  col_cnt,
+  kept_cols,
+) where {T, S}
   unbounded = false
   # assume Hcols sorted
-  for var in lin_unconstr_vars
-    # check diagonal H or 
-    idx_deb = findfirst(isequal(var), Hcols)
-    if idx_deb === nothing
-      if c[var] < zero(T)
-        xps[var] = uvar[var]
-        lvar[var] = uvar[var]
+  for j in 1:nvar
+    (kept_cols[j] && (col_cnt[j] == 0)) || continue 
+    # check empty rows/col j in H
+    if isempty(hcols[j].nzind)
+      if c[j] < zero(T)
+        xps[j] = uvar[j]
+        lvar[j] = uvar[j]
       else
-        xps[var] = lvar[var]
-        uvar[var] = lvar[var]
+        xps[j] = lvar[j]
+        uvar[j] = lvar[j]
       end
-      xps[var] == -T(Inf) && (unbounded = true)
+      xps[j] == -T(Inf) && (unbounded = true)
+      push!(operations, UnconstrainedReduction{T, S}(j))
     else
       continue
       # todo : QP 
@@ -42,3 +40,5 @@ function unconstrained_reductions!(
 
   return unbounded
 end
+
+postsolve!(pt::OutputPoint, operation::UnconstrainedReduction) = nothing

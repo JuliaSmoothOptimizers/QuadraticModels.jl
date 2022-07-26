@@ -52,8 +52,8 @@
   y_in = [2.0; 2.0]
   s_l = sparse([3.0; 2.0])
   s_u = sparse([0.0; 0.0])
-  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test x_out == [4.0; 2.0; 7.0]
+  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
+  @test pt_out.x == [4.0; 2.0; 7.0]
 
   # test that solves the problem
   qp2 = QuadraticModel(
@@ -117,8 +117,8 @@ end
   y_in = [2.0; 2.0; 4.0]
   s_l = sparse([3.0; 4.0; 2.0])
   s_u = sparse([0.0; 3.0; 0.0])
-  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test y_out == [2.0; 0.0; 0.0; 2.0; 0.0; 4.0]
+  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
+  @test pt_out.y == [2.0; 0.0; 0.0; 2.0; 0.0; 4.0]
 end
 
 @testset "presolve singleton rows" begin
@@ -169,8 +169,8 @@ end
   y_in = [2.0; 4.0]
   s_l = sparse([3.0; 4.0; 2.0])
   s_u = sparse([0.0; 3.0; 0.0])
-  x_out, y_out, s_l, s_u = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test y_out == [2.0; 0.0; 0.0; 0.0; 0.0; 4.0]
+  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
+  @test pt_out.y == [2.0; 0.0; 0.0; 0.0; 0.0; 4.0]
 end
 
 @testset "presolve singleton rows and ifix" begin
@@ -210,4 +210,39 @@ end
   @test statsps.status == :first_order
   @test statsps.solution ≈ [4.0 / 3.0; 7.0 / 6.0; 2.0 / 3.0]
   @test statsps.multipliers == zeros(length(b))
+end
+
+@testset "presolve free col singleton" begin
+  H = zeros(Float64, 3, 3)
+  c = [-8.0; 3; -3]
+  A = [
+    1.0 0.0 1.0
+    3.0 0.0 2.0
+    1.0 2.0 1.0
+  ]
+  b = [2.0; 4.0; 3]
+  l = [0.0; -Inf; 0]
+  u = [Inf; Inf; Inf]
+  T = eltype(c)
+  qp = QuadraticModel(
+    c,
+    SparseMatrixCOO(tril(H)),
+    A = SparseMatrixCOO(A),
+    lcon = b,
+    ucon = copy(b),
+    lvar = l,
+    uvar = u,
+    c0 = 0.0,
+    name = "QM1",
+  )
+
+  statsps = presolve(qp)
+  psqp = statsps.solver_specific[:presolvedQM]
+
+  x_in = [4.0; 4.0]
+  y_in = [2.0; 4.0]
+  s_l = sparse([3.0; 2.0])
+  s_u = sparse([0.0; 0.0])
+  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
+  @test pt_out.x ≈ [4.0, -2.5, 4.0]
 end

@@ -1,8 +1,75 @@
+abstract type PresolveOperation{T, S} end
+
+mutable struct OutputPoint{T, S}
+  x::S
+  y::S
+  s_l::SparseVector{T, Int}
+  s_u::SparseVector{T, Int}
+end
+
+mutable struct Row{T}
+  nzind::Vector{Int}
+  nzval::Vector{T}
+end
+
+mutable struct Col{T}
+  nzind::Vector{Int}
+  nzval::Vector{T}
+end
+
+function get_arows_acols(A::SparseMatrixCOO{T}, row_cnt, col_cnt, nvar, ncon) where {T}
+  Arows, Acols, Avals = A.rows, A.cols, A.vals
+  cnt_vec_rows = ones(Int, ncon)
+  arows = [Row{T}(zeros(Int, row_cnt[i]), fill(T(Inf), row_cnt[i])) for i in 1:ncon]
+  for k in 1:length(Arows)
+    i, j, Ax = Arows[k], Acols[k], Avals[k]
+    arows[i].nzind[cnt_vec_rows[i]] = j
+    arows[i].nzval[cnt_vec_rows[i]] = Ax
+    cnt_vec_rows[i] += 1
+  end
+
+  cnt_vec_cols = ones(Int, nvar)
+  acols = [Col{T}(zeros(Int, col_cnt[j]), fill(T(Inf), col_cnt[j])) for j in 1:nvar]
+  for k in 1:length(Arows)
+    i, j, Ax = Arows[k], Acols[k], Avals[k]
+    acols[j].nzind[cnt_vec_cols[j]] = i
+    acols[j].nzval[cnt_vec_cols[j]] = Ax
+    cnt_vec_cols[j] += 1
+  end
+  return arows, acols
+end
+
+function get_hcols(H::SparseMatrixCOO{T}, nvar) where {T}
+  Hrows, Hcols, Hvals = H.rows, H.cols, H.vals
+  hcol_cnt = zeros(Int, nvar)
+  for k in 1:length(Hrows)
+    i, j = Hrows[k], Hcols[k]
+    hcol_cnt[i] += 1
+    (i != j) && (hcol_cnt[j] += 1)
+  end
+  hcols = [Col{T}(zeros(Int, hcol_cnt[i]), fill(T(Inf), hcol_cnt[i])) for i in 1:nvar]
+
+  cnt_vec_cols = ones(Int, nvar)
+  for k in 1:length(Hrows)
+    i, j, Hx = Hrows[k], Hcols[k], Hvals[k]
+    hcols[j].nzind[cnt_vec_cols[j]] = i
+    hcols[j].nzval[cnt_vec_cols[j]] = Hx
+    cnt_vec_cols[j] += 1
+    if i != j
+      hcols[i].nzind[cnt_vec_cols[i]] = j
+      hcols[i].nzval[cnt_vec_cols[i]] = Hx
+      cnt_vec_cols[i] += 1
+    end
+  end
+  return hcols
+end
+
 include("presolve_utils.jl")
 include("remove_ifix.jl")
 include("empty_rows.jl")
 include("singleton_rows.jl")
 include("unconstrained_reductions.jl")
+include("linear_singleton_columns.jl")
 include("postsolve_utils.jl")
 
 mutable struct PresolvedData{T, S}
@@ -11,6 +78,7 @@ mutable struct PresolvedData{T, S}
   kept_cols::Vector{Bool}
   nconps::Int
   nvarps::Int
+  operations::Vector{PresolveOperation{T, S}}
 end
 
 mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
@@ -18,6 +86,22 @@ mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T
   counters::Counters
   data::QPData{T, S, M1, M2}
   psd::PresolvedData{T, S}
+end
+
+function check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
+  for i in 1:ncon
+    if kept_rows[i] && lcon[i] > ucon[i]
+      @warn "row $i primal infeasible"
+      return true
+    end
+  end
+  for j in 1:nvar
+    if kept_cols[j] && lvar[j] > uvar[j]
+      @warn "col $j primal infeasible"
+      return true
+    end
+  end
+  return false
 end
 
 """
@@ -28,10 +112,11 @@ Apply a presolve routine to `qm` and returns a
 from the package [`SolverCore.jl`](https://github.com/JuliaSmoothOptimizers/SolverCore.jl).
 The presolve operations currently implemented are:
 
-- [`empty_rows!`](@ref) : remove empty rows
-- [`singleton_rows!`](@ref) : remove singleton rows
-- [`unconstrained_reductions!`](@ref) : fix linearly unconstrained variables (lps)
-- [`remove_ifix!`](@ref) : remove fixed variables
+- remove empty rows
+- remove singleton rows
+- fix linearly unconstrained variables (lps)
+- remove free linear singleton columns whose associated variable does not appear in the hessian
+- remove fixed variables
 
 The `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}` is located in the `solver_specific` field:
 
@@ -44,7 +129,10 @@ If the presolved problem has 0 variables, `stats_ps.solution` contains a solutio
 
     s = qm.data.c + qm.data.H * stats_ps.solution
 
-`stats_ps.multipliers_L` is the positive part of `s` and `stats_ps.multipliers_U` is the opposite of the negative part of `s`. 
+`stats_ps.multipliers_L` is the positive part of `s` and `stats_ps.multipliers_U` is the opposite of the negative part of `s`.
+The presolve operations are inspired from [`MathOptPresolve.jl`](https://github.com/mtanneau/MathOptPresolve.jl), and from:
+
+* Gould, N., Toint, P. [*Preprocessing for quadratic programming*](https://doi.org/10.1007/s10107-003-0487-2), Math. Program., Ser. B 100, 95–132 (2004). 
 """
 function presolve(
   qm::QuadraticModel{T, S, M1, M2};
@@ -61,8 +149,8 @@ function presolve(
   # copy if same vector
   lcon === ucon && (lcon = copy(lcon))
   lvar === uvar && (lvar = copy(lvar))
-  row_cnt = Vector{Int}(undef, ncon)
-  col_cnt = Vector{Int}(undef, nvar)
+  row_cnt = zeros(Int, ncon)
+  col_cnt = zeros(Int, nvar)
   kept_rows = fill(true, ncon)
   kept_cols = fill(true, nvar)
   nconps = ncon
@@ -71,96 +159,94 @@ function presolve(
   nb_pass = 1
   keep_iterating = true
   unbounded = false
+  infeasible = false
+  operations = PresolveOperation{T, S}[]
+
+  # number of coefficients per row
+  vec_cnt!(row_cnt, psdata.A.rows)
+  # number of coefficients per col
+  vec_cnt!(col_cnt, psdata.A.cols)
+
+  # get list of rows and list of columns of A
+  arows, acols = get_arows_acols(psdata.A, row_cnt, col_cnt, nvar, ncon)
+  # get list of columns of H
+  hcols = get_hcols(psdata.H, nvar)
 
   while keep_iterating
-    resize!(row_cnt, nconps)
-    row_cnt .= 0
-    vec_cnt!(psdata.A.rows, row_cnt) # number of coefficients per row
+    empty_row_pass = empty_rows!(operations, lcon, ucon, ncon, row_cnt, kept_rows)
 
-    # empty rows
-    empty_rows = find_empty_rowscols(row_cnt) # indices of the empty rows
-    if length(empty_rows) > 0
-      empty_row_pass = true
-      update_kept_v!(kept_rows, empty_rows, ncon)
-      nconps = empty_rows!(psdata.A.rows, lcon, ucon, nconps, row_cnt, empty_rows)
-    else
-      empty_row_pass = false
-    end
+    singl_row_pass = singleton_rows!(
+      operations,
+      arows,
+      lcon,
+      ucon,
+      lvar,
+      uvar,
+      ncon,
+      row_cnt,
+      col_cnt,
+      kept_rows,
+      kept_cols,
+    )
 
-    # remove singleton rows
-    if empty_row_pass
-      resize!(row_cnt, nconps)
-      row_cnt .= 0
-      vec_cnt!(psdata.A.rows, row_cnt) # number of coefficients per rows
-    end
-    singl_rows = find_singleton_rowscols(row_cnt) # indices of the singleton rows
-    if length(singl_rows) > 0
-      singl_row_pass = true
-      update_kept_v!(kept_rows, singl_rows, ncon)
-      nconps = singleton_rows!(
-        psdata.A.rows,
-        psdata.A.cols,
-        psdata.A.vals,
-        lcon,
-        ucon,
-        lvar,
-        uvar,
-        nvarps,
-        nconps,
-        row_cnt,
-        singl_rows,
-      )
-    else
-      singl_row_pass = false
-    end
+    unbounded = unconstrained_reductions!(
+      operations,
+      c,
+      hcols,
+      lvar,
+      uvar,
+      xps,
+      nvar,
+      col_cnt,
+      kept_cols,
+    )
 
-    # unconstrained reductions
-    col_cnt .= 0
-    vec_cnt!(psdata.A.cols, col_cnt) # number of coefficients per row
-    lin_unconstr_vars = find_empty_rowscols(col_cnt) # indices of the singleton rows
-    if length(lin_unconstr_vars) > 0
-      unbounded = unconstrained_reductions!(
-        c,
-        psdata.H.rows,
-        psdata.H.cols,
-        psdata.H.vals,
-        lvar,
-        uvar,
-        xps,
-        lin_unconstr_vars,
-      )
-    end
+    free_lsc_pass, psdata.c0 = free_linear_singleton_columns!(
+      operations,
+      hcols,
+      arows,
+      acols,
+      c,
+      psdata.c0,
+      lcon,
+      ucon,
+      lvar,
+      uvar,
+      nvar,
+      row_cnt,
+      col_cnt,
+      kept_rows,
+      kept_cols,
+    )
 
-    # remove fixed variables
-    ifix = findall(lvar .== uvar)
-    if length(ifix) > 0
-      ifix_pass = true
-      psdata.c0, nvarps = remove_ifix!(
-        ifix,
-        psdata.H.rows,
-        psdata.H.cols,
-        psdata.H.vals,
-        nvarps,
-        psdata.A.rows,
-        psdata.A.cols,
-        psdata.A.vals,
-        c,
-        psdata.c0,
-        lvar,
-        uvar,
-        lcon,
-        ucon,
-        kept_cols,
-        xps,
-        nvar,
-      )
-      resize!(col_cnt, nvarps)
-    else
-      ifix_pass = false
-    end
+    psdata.c0, ifix_pass = remove_ifix!(
+      operations,
+      hcols,
+      acols,
+      c,
+      psdata.c0,
+      lvar,
+      uvar,
+      lcon,
+      ucon,
+      nvar,
+      row_cnt,
+      col_cnt,
+      kept_rows,
+      kept_cols,
+      xps,
+    )
 
-    keep_iterating = (empty_row_pass || singl_row_pass || ifix_pass) && !unbounded
+    infeasible = check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
+
+    keep_iterating = (empty_row_pass || singl_row_pass || ifix_pass || free_lsc_pass) && (!unbounded || !infeasible)
     keep_iterating && (nb_pass += 1)
+  end
+
+  if !isempty(operations)
+    remove_rowscols_A!(psdata.A.rows, psdata.A.cols, psdata.A.vals, kept_rows, kept_cols, nvar, ncon)
+    remove_rowscols_H!(psdata.H.rows, psdata.H.cols, psdata.H.vals, kept_cols, nvar)
+    nconps, nvarps = update_vectors!(lcon, ucon, c, lvar, uvar, kept_rows, kept_cols, ncon, nvar)
   end
 
   # form meta
@@ -176,6 +262,15 @@ function presolve(
   if unbounded
     return GenericExecutionStats(
       :unbounded,
+      qm,
+      solution = xps,
+      iter = 0,
+      elapsed_time = time() - start_time,
+      solver_specific = Dict(:presolvedQM => nothing),
+    )
+  elseif infeasible
+    return GenericExecutionStats(
+      :infeasible,
       qm,
       solution = xps,
       iter = 0,
@@ -216,7 +311,7 @@ function presolve(
       minimize = qm.meta.minimize,
       kwargs...,
     )
-    psd = PresolvedData{T, S}(xps, kept_rows, kept_cols, nconps, nvarps)
+    psd = PresolvedData{T, S}(xps, kept_rows, kept_cols, nconps, nvarps, operations)
     ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
     return GenericExecutionStats(
       :unknown,
@@ -231,22 +326,19 @@ end
 function postsolve!(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
+  pt_out::OutputPoint{T, S},
   x_in::S,
-  x_out::S,
   y_in::S,
-  y_out::S,
-  s_l::SparseVector{T, Int},
-  s_u::SparseVector{T, Int},
 ) where {T, S}
-  restore_ifix!(psqm.psd.kept_cols, psqm.psd.xps, x_in, x_out)
-  ncon = length(y_out)
-  restore_y!(y_in, y_out, psqm.psd.kept_rows, ncon)
-
-  ilow, iupp = s_l.nzind, s_u.nzind
-  restore_ilow_iupp!(ilow, iupp, psqm.psd.kept_cols)
-  s_l_out = SparseVector(qm.meta.nvar, ilow, s_l.nzval)
-  s_u_out = SparseVector(qm.meta.nvar, iupp, s_u.nzval)
-  return s_l_out, s_u_out
+  n_operations = length(psqm.psd.operations)
+  nvar = length(pt_out.x)
+  restore_x!(psqm.psd.kept_cols, x_in, pt_out.x, nvar)
+  ncon = length(pt_out.y)
+  restore_y!(psqm.psd.kept_rows, y_in, pt_out.y, ncon)
+  for i=n_operations:-1:1
+    operation_i = psqm.psd.operations[i]
+    postsolve!(pt_out, operation_i)
+  end
 end
 
 """
@@ -268,6 +360,15 @@ function postsolve(
 ) where {T, S}
   x_out = similar(qm.meta.x0)
   y_out = similar(qm.meta.y0)
-  s_l_out, s_u_out = postsolve!(qm, psqm, x_in, x_out, y_in, y_out, s_l, s_u)
-  return x_out, y_out, s_l_out, s_u_out
+
+  ilow, iupp = s_l.nzind, s_u.nzind
+  restore_ilow_iupp!(ilow, iupp, psqm.psd.kept_cols)
+  pt_out = OutputPoint(
+    x_out,
+    y_out,
+    SparseVector(qm.meta.nvar, ilow, s_l.nzval),
+    SparseVector(qm.meta.nvar, iupp, s_u.nzval),
+  )
+  postsolve!(qm, psqm, pt_out, x_in, y_in)
+  return pt_out
 end

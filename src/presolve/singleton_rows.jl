@@ -1,70 +1,81 @@
-"""
-    new_ncon = singleton_rows!(Arows, Acols, Avals, lcon, ucon,
-                               lvar, uvar, nvar, ncon, row_cnt, singl_rows)
+struct SingletonRow{T, S} <: PresolveOperation{T, S}
+  i::Int # idx of singleton row
+  j::Int
+  Aij::T
+  tightened_lvar::Bool
+  tightened_uvar::Bool
+end
 
-Removes the singleton rows of A, and the corresponding elements in lcon and ucon that are in `singl_rows`.
-`row_cnt` is a vector of the number of elements per row.
-
-Returns the new number of constraints `new_ncon` and updates in-place `Arows`, `Acols`, `Avals`, `lcon`, `ucon`, `lvar`, `uvar`.
-"""
 function singleton_rows!(
-  Arows,
-  Acols,
-  Avals,
-  lcon::Vector{T},
-  ucon::Vector{T},
+  operations::Vector{PresolveOperation{T, S}},
+  arows::Vector{Row{T}},
+  lcon::S,
+  ucon::S,
   lvar,
   uvar,
-  nvar,
   ncon,
-  row_cnt::Vector{Int},
-  singl_rows::Vector{Int},
-) where {T}
-
+  row_cnt,
+  col_cnt,
+  kept_rows,
+  kept_cols,
+) where {T, S}
   # assume Acols is sorted
-  Annz = length(Arows)
-  nsingl = length(singl_rows)
+  singl_row_pass = false
 
-  # remove ifix 1 by 1 in H and A and update QP data
-  for idxsingl = 1:nsingl
-    currentisingl = singl_rows[idxsingl]
-    # index of the current singleton row that takes the number of 
-    # already removed variables into account:
-    newcurrentisingl = currentisingl - idxsingl + 1
-
-    # remove singleton rows in A rows
-    Awritepos = 1
+  for i=1:ncon
+    (kept_rows[i] && (row_cnt[i] == 1)) || continue
+    singl_row_pass = true
+    tightened_lvar = false
+    tightened_uvar = false
+    Ax = T(Inf)
+    rowi = arows[i]
     k = 1
-    while k <= Annz - idxsingl + 1
-      Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
-      if Ai == newcurrentisingl
-        if Ax > zero(T)
-          lvar[Aj] = max(lvar[Aj], lcon[currentisingl] / Ax)
-          uvar[Aj] = min(uvar[Aj], ucon[currentisingl] / Ax)
-        elseif Ax < zero(T)
-          lvar[Aj] = max(lvar[Aj], ucon[currentisingl] / Ax)
-          uvar[Aj] = min(uvar[Aj], lcon[currentisingl] / Ax)
-        else
-          error("remove explicit zeros in A")
-        end
-      else
-        Arows[Awritepos] = (Ai < newcurrentisingl) ? Ai : Ai - 1
-        Acols[Awritepos] = Aj
-        Avals[Awritepos] = Ax
-        Awritepos += 1
-      end
+    j = rowi.nzind[k]
+    while !(kept_cols[j])
       k += 1
+      j = rowi.nzind[k]
     end
-  end
+    Ax = rowi.nzval[k]
 
-  if nsingl > 0
-    Annz -= nsingl
-    resize!(Arows, Annz)
-    resize!(Acols, Annz)
-    resize!(Avals, Annz)
-  end
+    col_cnt[j] -= 1
+    if Ax > zero(T)
+      lvar2 = lcon[i] / Ax
+      uvar2 = ucon[i] / Ax
+    elseif Ax < zero(T)
+      uvar2 = lcon[i] / Ax
+      lvar2 = ucon[i] / Ax
+    else
+      error("remove explicit zeros in A")
+    end
+    if lvar[j] < lvar2
+      lvar[j] = lvar2
+      tightened_lvar = true
+    end
+    if uvar[j] > uvar2
+      uvar[j] = uvar2
+      tightened_uvar = true
+    end
 
-  deleteat!(lcon, singl_rows)
-  deleteat!(ucon, singl_rows)
-  return ncon - nsingl
+    row_cnt[i] = -1
+    kept_rows[i] = false
+    push!(operations, SingletonRow{T, S}(i, j, Ax, tightened_lvar, tightened_uvar))
+  end
+  return singl_row_pass
+end
+
+function postsolve!(pt::OutputPoint{T, S}, operation::SingletonRow{T, S}) where {T, S}
+  i, j = operation.i, operation.j
+  dual_slack = -pt.s_l[j] + pt.s_u[j]
+  Aij = operation.Aij
+  if operation.tightened_lvar
+    pt.y[i] = dual_slack / Aij
+    pt.s_l[j] = zero(T)
+  end
+  if operation.tightened_uvar
+    pt.y[i] = dual_slack / Aij
+    pt.s_u[j] = zero(T)
+  end
+  if !operation.tightened_lvar && !operation.tightened_uvar
+    pt.y[i] = zero(T)
+  end
 end
