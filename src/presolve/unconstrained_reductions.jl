@@ -15,8 +15,8 @@ function unconstrained_reductions!(
 ) where {T, S}
   unbounded = false
   # assume Hcols sorted
-  for j in 1:nvar
-    (kept_cols[j] && (col_cnt[j] == 0)) || continue 
+  for j = 1:nvar
+    (kept_cols[j] && (col_cnt[j] == 0)) || continue
     # check empty rows/col j in H
     if isempty(hcols[j].nzind)
       if c[j] < zero(T)

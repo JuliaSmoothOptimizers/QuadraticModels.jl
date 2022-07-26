@@ -11,7 +11,7 @@ function empty_rows!(
   kept_rows::Vector{Bool},
 ) where {T, S}
   empty_row_pass = false
-  for i=1:ncon
+  for i = 1:ncon
     (kept_rows[i] && (row_cnt[i] == 0)) || continue
     empty_row_pass = true
     @assert (lcon[i] ≤ zero(T) ≤ ucon[i])

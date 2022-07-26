@@ -27,7 +27,7 @@ function free_linear_singleton_columns!(
   free_lsc_pass = false
   c0_offset = zero(T)
 
-  for j=1:nvar
+  for j = 1:nvar
     (kept_cols[j] && (col_cnt[j] == 1)) || continue
     # check infinity bounds and no hessian contribution
     if lvar[j] == -T(Inf) && uvar[j] == T(Inf) && isempty(hcols[j].nzind)
@@ -56,7 +56,7 @@ function free_linear_singleton_columns!(
         # new row to store for postsolve:
         rowi2 = Row(zeros(Int, nb_elem_i), zeros(T, nb_elem_i))
         c_i = 1
-        for k in 1:length(rowi.nzind)
+        for k = 1:length(rowi.nzind)
           j2 = rowi.nzind[k]
           # add all col elements to rowi2 except the col j2 == j
           if kept_cols[j2] && j2 != j

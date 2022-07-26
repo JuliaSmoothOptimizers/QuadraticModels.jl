@@ -13,7 +13,7 @@ function remove_rowscols_A!(Arows, Acols, Avals, kept_rows, kept_cols, nvar, nco
   Arm = 0
   nb_rm_rows = 0
   # remove rows
-  for i0=1:ncon
+  for i0 = 1:ncon
     kept_rows[i0] && continue
     i = i0 - nb_rm_rows # up idx according to already removed rows
     nb_rm_rows += 1
@@ -37,7 +37,7 @@ function remove_rowscols_A!(Arows, Acols, Avals, kept_rows, kept_cols, nvar, nco
 
   # remove cols
   nb_rm_cols = 0
-  for j0=1:nvar
+  for j0 = 1:nvar
     kept_cols[j0] && continue
     j = j0 - nb_rm_cols # up idx according to already removed cols
     nb_rm_cols += 1
@@ -58,7 +58,7 @@ function remove_rowscols_A!(Arows, Acols, Avals, kept_rows, kept_cols, nvar, nco
     end
     Arm += Arm_tmp
   end
-  
+
   if Arm > 0
     Annz -= Arm
     resize!(Arows, Annz)
@@ -72,7 +72,7 @@ function remove_rowscols_H!(Hrows, Hcols, Hvals, kept_cols, nvar)
   Hrm = 0
   nb_rm = 0
   # remove rows and cols
-  for j0=1:nvar
+  for j0 = 1:nvar
     kept_cols[j0] && continue
     j = j0 - nb_rm # up idx according to already removed cols
     nb_rm += 1
@@ -95,7 +95,7 @@ function remove_rowscols_H!(Hrows, Hcols, Hvals, kept_cols, nvar)
     end
     Hrm += Hrm_tmp
   end
-  
+
   if Hrm > 0
     Hnnz -= Hrm
     resize!(Hrows, Hnnz)
