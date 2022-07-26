@@ -6,14 +6,6 @@ end
 # ̃xᵀ̃Hx̃ + ̃ĉᵀx̃ + lⱼ²Hⱼⱼ + cⱼxⱼ + c₀
 # ̂c = ̃c + 2lⱼΣₖHⱼₖxₖ , k ≂̸ j
 
-"""
-    c0ps = remove_ifix!(ifix, Hrows, Hcols, Hvals, nvar, 
-                        Arows, Acols, Avals, c, c0, 
-                        lvar, lcon, ucon, row_cnt, col_cnt,
-                        kept_cols, xps)
-
-Presolve procedure to remove fixed variables to `lvar` at indices `ifix`.
-"""
 function remove_ifix!(
   operations::Vector{PresolveOperation{T, S}},
   hcols::Vector{Col{T}},

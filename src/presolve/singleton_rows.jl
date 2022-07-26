@@ -6,13 +6,6 @@ struct SingletonRow{T, S} <: PresolveOperation{T, S}
   tightened_uvar::Bool
 end
 
-"""
-    singleton_rows!(Arows, Acols, Avals, lcon, ucon,
-                    lvar, uvar, nvar, ncon, row_cnt, singl_rows,
-                    row_cnt, col_cnt, kept_rows)
-
-Presolve procedure for singleton rows of A in `singl_rows`.
-"""
 function singleton_rows!(
   operations::Vector{PresolveOperation{T, S}},
   arows::Vector{Row{T}},
@@ -34,7 +27,6 @@ function singleton_rows!(
     singl_row_pass = true
     tightened_lvar = false
     tightened_uvar = false
-    j = 0
     Ax = T(Inf)
     rowi = arows[i]
     k = 1

@@ -2,13 +2,6 @@ struct UnconstrainedReduction{T, S} <: PresolveOperation{T, S}
   j::Int
 end
 # apply before remove ifix
-"""
-    unbounded = unconstrained_reductions!(c, Hrows, Hcols, Hvals, lvar, uvar,
-                                          xps, lin_unconstr_vars)
-
-Fix linearly unconstrained variables, updating the corresponding elements of `xps`.
-This only works for linear problems for now, but can be extended to some specific quadratic problems.
-"""
 function unconstrained_reductions!(
   operations::Vector{PresolveOperation{T, S}},
   c::S,

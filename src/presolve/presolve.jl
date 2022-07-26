@@ -69,6 +69,7 @@ include("remove_ifix.jl")
 include("empty_rows.jl")
 include("singleton_rows.jl")
 include("unconstrained_reductions.jl")
+include("linear_singleton_columns.jl")
 include("postsolve_utils.jl")
 
 mutable struct PresolvedData{T, S}
@@ -87,6 +88,22 @@ mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T
   psd::PresolvedData{T, S}
 end
 
+function check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
+  for i in 1:ncon
+    if kept_rows[i] && lcon[i] > ucon[i]
+      @warn "row $i primal infeasible"
+      return true
+    end
+  end
+  for j in 1:nvar
+    if kept_cols[j] && lvar[j] > uvar[j]
+      @warn "col $j primal infeasible"
+      return true
+    end
+  end
+  return false
+end
+
 """
     stats_ps = presolve(qm::QuadraticModel{T, S}; kwargs...)
 
@@ -95,10 +112,11 @@ Apply a presolve routine to `qm` and returns a
 from the package [`SolverCore.jl`](https://github.com/JuliaSmoothOptimizers/SolverCore.jl).
 The presolve operations currently implemented are:
 
-- [`empty_rows!`](@ref) : remove empty rows
-- [`singleton_rows!`](@ref) : remove singleton rows
-- [`unconstrained_reductions!`](@ref) : fix linearly unconstrained variables (lps)
-- [`remove_ifix!`](@ref) : remove fixed variables
+- remove empty rows
+- remove singleton rows
+- fix linearly unconstrained variables (lps)
+- remove free linear singleton columns whose associated variable does not appear in the hessian
+- remove fixed variables
 
 The `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}` is located in the `solver_specific` field:
 
@@ -111,7 +129,10 @@ If the presolved problem has 0 variables, `stats_ps.solution` contains a solutio
 
     s = qm.data.c + qm.data.H * stats_ps.solution
 
-`stats_ps.multipliers_L` is the positive part of `s` and `stats_ps.multipliers_U` is the opposite of the negative part of `s`. 
+`stats_ps.multipliers_L` is the positive part of `s` and `stats_ps.multipliers_U` is the opposite of the negative part of `s`.
+The presolve operations are inspired from [`MathOptPresolve.jl`](https://github.com/mtanneau/MathOptPresolve.jl), and from:
+
+* Gould, N., Toint, P. [*Preprocessing for quadratic programming*](https://doi.org/10.1007/s10107-003-0487-2), Math. Program., Ser. B 100, 95–132 (2004). 
 """
 function presolve(
   qm::QuadraticModel{T, S, M1, M2};
@@ -138,6 +159,7 @@ function presolve(
   nb_pass = 1
   keep_iterating = true
   unbounded = false
+  infeasible = false
   operations = PresolveOperation{T, S}[]
 
   # number of coefficients per row
@@ -151,10 +173,8 @@ function presolve(
   hcols = get_hcols(psdata.H, nvar)
 
   while keep_iterating
-    # empty rows
     empty_row_pass = empty_rows!(operations, lcon, ucon, ncon, row_cnt, kept_rows)
 
-    # singleton rows
     singl_row_pass = singleton_rows!(
       operations,
       arows,
@@ -169,7 +189,6 @@ function presolve(
       kept_cols,
     )
 
-    # unconstrained reductions
     unbounded = unconstrained_reductions!(
       operations,
       c,
@@ -182,7 +201,24 @@ function presolve(
       kept_cols,
     )
 
-    # remove fixed variables
+    free_lsc_pass, psdata.c0 = free_linear_singleton_columns!(
+      operations,
+      hcols,
+      arows,
+      acols,
+      c,
+      psdata.c0,
+      lcon,
+      ucon,
+      lvar,
+      uvar,
+      nvar,
+      row_cnt,
+      col_cnt,
+      kept_rows,
+      kept_cols,
+    )
+
     psdata.c0, ifix_pass = remove_ifix!(
       operations,
       hcols,
@@ -201,7 +237,9 @@ function presolve(
       xps,
     )
 
-    keep_iterating = (empty_row_pass || singl_row_pass || ifix_pass) && !unbounded
+    infeasible = check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
+
+    keep_iterating = (empty_row_pass || singl_row_pass || ifix_pass || free_lsc_pass) && (!unbounded || !infeasible)
     keep_iterating && (nb_pass += 1)
   end
 
@@ -224,6 +262,15 @@ function presolve(
   if unbounded
     return GenericExecutionStats(
       :unbounded,
+      qm,
+      solution = xps,
+      iter = 0,
+      elapsed_time = time() - start_time,
+      solver_specific = Dict(:presolvedQM => nothing),
+    )
+  elseif infeasible
+    return GenericExecutionStats(
+      :infeasible,
       qm,
       solution = xps,
       iter = 0,
