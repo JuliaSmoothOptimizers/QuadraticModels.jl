@@ -22,7 +22,7 @@ function singleton_rows!(
   # assume Acols is sorted
   singl_row_pass = false
 
-  for i=1:ncon
+  for i = 1:ncon
     (kept_rows[i] && (row_cnt[i] == 1)) || continue
     singl_row_pass = true
     tightened_lvar = false

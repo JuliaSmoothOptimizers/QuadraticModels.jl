@@ -1,4 +1,4 @@
-function restore_x!(kept_cols, xin::S, xout::S, nvar) where S
+function restore_x!(kept_cols, xin::S, xout::S, nvar) where {S}
   # put x and xps inside xout according to kept_cols
   cx = 0
   for i = 1:nvar

@@ -23,7 +23,6 @@ function remove_ifix!(
   kept_cols,
   xps,
 ) where {T, S}
-
   ifix_pass = false
   c0_offset = zero(T)
 
@@ -31,7 +30,7 @@ function remove_ifix!(
     (kept_cols[j] && (lvar[j] == uvar[j])) || continue
     ifix_pass = true
     xj = lvar[j]
-    for k in 1:length(hcols[j].nzind)
+    for k = 1:length(hcols[j].nzind)
       i = hcols[j].nzind[k]
       Hx = hcols[j].nzval[k]
       if i == j
@@ -42,7 +41,7 @@ function remove_ifix!(
     end
 
     # remove ifix in A cols
-    for k in 1:length(acols[j].nzind)
+    for k = 1:length(acols[j].nzind)
       i = acols[j].nzind[k]
       if kept_rows[i]
         row_cnt[i] -= 1

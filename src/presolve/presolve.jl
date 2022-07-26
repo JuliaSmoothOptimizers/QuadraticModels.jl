@@ -20,8 +20,8 @@ end
 function get_arows_acols(A::SparseMatrixCOO{T}, row_cnt, col_cnt, nvar, ncon) where {T}
   Arows, Acols, Avals = A.rows, A.cols, A.vals
   cnt_vec_rows = ones(Int, ncon)
-  arows = [Row{T}(zeros(Int, row_cnt[i]), fill(T(Inf), row_cnt[i])) for i in 1:ncon]
-  for k in 1:length(Arows)
+  arows = [Row{T}(zeros(Int, row_cnt[i]), fill(T(Inf), row_cnt[i])) for i = 1:ncon]
+  for k = 1:length(Arows)
     i, j, Ax = Arows[k], Acols[k], Avals[k]
     arows[i].nzind[cnt_vec_rows[i]] = j
     arows[i].nzval[cnt_vec_rows[i]] = Ax
@@ -29,8 +29,8 @@ function get_arows_acols(A::SparseMatrixCOO{T}, row_cnt, col_cnt, nvar, ncon) wh
   end
 
   cnt_vec_cols = ones(Int, nvar)
-  acols = [Col{T}(zeros(Int, col_cnt[j]), fill(T(Inf), col_cnt[j])) for j in 1:nvar]
-  for k in 1:length(Arows)
+  acols = [Col{T}(zeros(Int, col_cnt[j]), fill(T(Inf), col_cnt[j])) for j = 1:nvar]
+  for k = 1:length(Arows)
     i, j, Ax = Arows[k], Acols[k], Avals[k]
     acols[j].nzind[cnt_vec_cols[j]] = i
     acols[j].nzval[cnt_vec_cols[j]] = Ax
@@ -42,15 +42,15 @@ end
 function get_hcols(H::SparseMatrixCOO{T}, nvar) where {T}
   Hrows, Hcols, Hvals = H.rows, H.cols, H.vals
   hcol_cnt = zeros(Int, nvar)
-  for k in 1:length(Hrows)
+  for k = 1:length(Hrows)
     i, j = Hrows[k], Hcols[k]
     hcol_cnt[i] += 1
     (i != j) && (hcol_cnt[j] += 1)
   end
-  hcols = [Col{T}(zeros(Int, hcol_cnt[i]), fill(T(Inf), hcol_cnt[i])) for i in 1:nvar]
+  hcols = [Col{T}(zeros(Int, hcol_cnt[i]), fill(T(Inf), hcol_cnt[i])) for i = 1:nvar]
 
   cnt_vec_cols = ones(Int, nvar)
-  for k in 1:length(Hrows)
+  for k = 1:length(Hrows)
     i, j, Hx = Hrows[k], Hcols[k], Hvals[k]
     hcols[j].nzind[cnt_vec_cols[j]] = i
     hcols[j].nzval[cnt_vec_cols[j]] = Hx
@@ -89,13 +89,13 @@ mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T
 end
 
 function check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
-  for i in 1:ncon
+  for i = 1:ncon
     if kept_rows[i] && lcon[i] > ucon[i]
       @warn "row $i primal infeasible"
       return true
     end
   end
-  for j in 1:nvar
+  for j = 1:nvar
     if kept_cols[j] && lvar[j] > uvar[j]
       @warn "col $j primal infeasible"
       return true
@@ -189,17 +189,8 @@ function presolve(
       kept_cols,
     )
 
-    unbounded = unconstrained_reductions!(
-      operations,
-      c,
-      hcols,
-      lvar,
-      uvar,
-      xps,
-      nvar,
-      col_cnt,
-      kept_cols,
-    )
+    unbounded =
+      unconstrained_reductions!(operations, c, hcols, lvar, uvar, xps, nvar, col_cnt, kept_cols)
 
     free_lsc_pass, psdata.c0 = free_linear_singleton_columns!(
       operations,
@@ -239,12 +230,22 @@ function presolve(
 
     infeasible = check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
 
-    keep_iterating = (empty_row_pass || singl_row_pass || ifix_pass || free_lsc_pass) && (!unbounded || !infeasible)
+    keep_iterating =
+      (empty_row_pass || singl_row_pass || ifix_pass || free_lsc_pass) &&
+      (!unbounded || !infeasible)
     keep_iterating && (nb_pass += 1)
   end
 
   if !isempty(operations)
-    remove_rowscols_A!(psdata.A.rows, psdata.A.cols, psdata.A.vals, kept_rows, kept_cols, nvar, ncon)
+    remove_rowscols_A!(
+      psdata.A.rows,
+      psdata.A.cols,
+      psdata.A.vals,
+      kept_rows,
+      kept_cols,
+      nvar,
+      ncon,
+    )
     remove_rowscols_H!(psdata.H.rows, psdata.H.cols, psdata.H.vals, kept_cols, nvar)
     nconps, nvarps = update_vectors!(lcon, ucon, c, lvar, uvar, kept_rows, kept_cols, ncon, nvar)
   end
@@ -335,7 +336,7 @@ function postsolve!(
   restore_x!(psqm.psd.kept_cols, x_in, pt_out.x, nvar)
   ncon = length(pt_out.y)
   restore_y!(psqm.psd.kept_rows, y_in, pt_out.y, ncon)
-  for i=n_operations:-1:1
+  for i = n_operations:-1:1
     operation_i = psqm.psd.operations[i]
     postsolve!(pt_out, operation_i)
   end
