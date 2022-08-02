@@ -1,6 +1,9 @@
 struct RemoveIfix{T, S} <: PresolveOperation{T, S}
   j::Int
   xj::T
+  cj::T
+  acolj::Col{T}
+  hcolj::Col{T}
 end
 
 # ̃xᵀ̃Hx̃ + ̃ĉᵀx̃ + lⱼ²Hⱼⱼ + cⱼxⱼ + c₀
@@ -41,15 +44,34 @@ function remove_ifix!(
     end
 
     # remove ifix in A cols
-    for k = 1:length(acols[j].nzind)
-      i = acols[j].nzind[k]
+    c_acolj = 0
+    for (i, aij) in zip(acols[j].nzind, acols[j].nzval)
       if kept_rows[i]
         row_cnt[i] -= 1
-        con_offset = acols[j].nzval[k] * xj
+        con_offset = aij * xj
         lcon[i] -= con_offset
         ucon[i] -= con_offset
+        c_acolj += 1 # count number of rows in acols[j]
       end
     end
+
+    # store acolj for postsolve
+    acolj = Col(zeros(Int, c_acolj), zeros(T, c_acolj))
+    c_acolj = 1
+    for k in 1:length(acols[j].nzind)
+      i = acols[j].nzind[k]
+      kept_rows[i] || continue
+      aij = acols[j].nzval[k]
+      acolj.nzind[c_acolj] = i
+      acolj.nzval[c_acolj] = aij
+      c_acolj += 1
+    end
+
+    # store hcolj for postsolve
+    hcolj = Col{T}(
+      [i for i in hcols[j].nzind if kept_cols[i]],
+      [hij for (i, hij) in zip(hcols[j].nzind, hcols[j].nzval) if kept_cols[i]],
+    )
 
     # update c0 with c[j] coeff
     c0_offset += c[j] * xj
@@ -57,7 +79,7 @@ function remove_ifix!(
     kept_cols[j] = false
     col_cnt[j] = -1
 
-    push!(operations, RemoveIfix{T, S}(j, xj))
+    push!(operations, RemoveIfix{T, S}(j, xj, c[j], acolj, hcolj))
   end
   # update c0
   c0ps = c0 + c0_offset
@@ -66,5 +88,14 @@ function remove_ifix!(
 end
 
 function postsolve!(pt::OutputPoint{T, S}, operation::RemoveIfix{T, S}) where {T, S}
-  pt.x[operation.j] = operation.xj
+  j = operation.j
+  pt.x[j] = operation.xj
+  ATyj = @views dot(operation.acolj.nzval, pt.y[operation.acolj.nzind])
+  Hxj = @views dot(operation.hcolj.nzval, pt.x[operation.hcolj.nzind])
+  s = operation.cj + Hxj - ATyj
+  if s > zero(T)
+    pt.s_l[j] = s
+  else
+    pt.s_u[j] = -s
+  end
 end

@@ -32,11 +32,11 @@ function restore_ilow_iupp!(ilow, iupp, kept_cols)
       offset += 1
     end
     if c_low ≤ nlow && ilow[c_low] + offset == i
-      ilow[c_low] += 1
+      ilow[c_low] += offset
       c_low += 1
     end
     if c_upp ≤ nupp && iupp[c_upp] + offset == i
-      iupp[c_upp] += 1
+      iupp[c_upp] += offset
       c_upp += 1
     end
   end

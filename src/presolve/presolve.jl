@@ -70,6 +70,8 @@ include("empty_rows.jl")
 include("singleton_rows.jl")
 include("unconstrained_reductions.jl")
 include("linear_singleton_columns.jl")
+include("primal_constraints.jl")
+include("free_rows.jl")
 include("postsolve_utils.jl")
 
 mutable struct PresolvedData{T, S}
@@ -210,6 +212,23 @@ function presolve(
       kept_cols,
     )
 
+    infeasible_cst = primal_constraints!(
+      operations,
+      arows,
+      lcon,
+      ucon,
+      lvar,
+      uvar,
+      nvar,
+      ncon,
+      kept_rows,
+      kept_cols,
+      row_cnt,
+      col_cnt,
+    )
+
+    free_rows_pass = free_rows!(operations, lcon, ucon, ncon, row_cnt, kept_rows)
+
     psdata.c0, ifix_pass = remove_ifix!(
       operations,
       hcols,
@@ -228,11 +247,11 @@ function presolve(
       xps,
     )
 
-    infeasible = check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
+    infeasible_bnd = check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
 
-    keep_iterating =
-      (empty_row_pass || singl_row_pass || ifix_pass || free_lsc_pass) &&
-      (!unbounded || !infeasible)
+    infeasible = infeasible_bnd || infeasible_cst
+    reduction_pass = empty_row_pass || singl_row_pass || ifix_pass || free_lsc_pass || free_rows_pass
+    keep_iterating = reduction_pass && !unbounded && !infeasible
     keep_iterating && (nb_pass += 1)
   end
 
@@ -295,7 +314,8 @@ function presolve(
       multipliers_U = s_u,
       iter = 0,
       elapsed_time = time() - start_time,
-      solver_specific = Dict(:presolvedQM => nothing),
+      solver_specific = Dict(:presolvedQM => nothing,
+                             :psoperations => operations),
     )
   else
     psmeta = NLPModelMeta{T, S}(
@@ -319,7 +339,7 @@ function presolve(
       ps,
       iter = 0,
       elapsed_time = time() - start_time,
-      solver_specific = Dict(:presolvedQM => ps),
+      solver_specific = Dict(:presolvedQM => ps, :psoperations => operations),
     )
   end
 end
@@ -343,12 +363,12 @@ function postsolve!(
 end
 
 """
-    x, y, s_l, s_u = postsolve(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, 
-                               x_in::S, y_in::S,
-                               s_l_in::SparseVector{T, Int},
-                               s_u_in::SparseVector{T, Int}) where {T, S}
+    pt = postsolve(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, 
+                   x_in::S, y_in::S,
+                   s_l_in::SparseVector{T, Int},
+                   s_u_in::SparseVector{T, Int}) where {T, S}
 
-Retrieve the solution `x, y, s_l, s_u` of the original QP `qm` given the solution of the presolved QP (`psqm`)
+Retrieve the solution `(x, y, s_l, s_u)` of the original QP `qm` given the solution of the presolved QP (`psqm`)
 `x_in, y_in, s_l_in, s_u_in`.
 """
 function postsolve(

@@ -18,7 +18,7 @@
     SparseMatrixCOO(tril(H)),
     A = SparseMatrixCOO(A),
     lcon = [-3.0; -4.0],
-    ucon = [-2.0; Inf],
+    ucon = [20.0; Inf],
     lvar = l,
     uvar = u,
     c0 = 0.0,
@@ -83,7 +83,7 @@ end
     0.0 2.0 1.0
   ]
   b = [0.0; 0.0; 0.0; 4.0; 0.0; 3]
-  l = [0.0; 0.0; 0]
+  l = [-2.0; -4.0; 0]
   u = [Inf; 2.0; Inf]
   T = eltype(c)
   qp = QuadraticModel(
@@ -170,7 +170,7 @@ end
   s_l = sparse([3.0; 4.0; 2.0])
   s_u = sparse([0.0; 3.0; 0.0])
   pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test pt_out.y == [2.0; 0.0; 0.0; 0.0; 0.0; 4.0]
+  @test pt_out.y == [2.0; 0.0; 0.0; 1.0; 0.0; 4.0]
 end
 
 @testset "presolve singleton rows and ifix" begin

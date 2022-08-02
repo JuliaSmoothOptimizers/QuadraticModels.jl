@@ -37,7 +37,6 @@ function singleton_rows!(
     end
     Ax = rowi.nzval[k]
 
-    col_cnt[j] -= 1
     if Ax > zero(T)
       lvar2 = lcon[i] / Ax
       uvar2 = ucon[i] / Ax
@@ -47,17 +46,18 @@ function singleton_rows!(
     else
       error("remove explicit zeros in A")
     end
-    if lvar[j] < lvar2
+    if lvar[j] ≤ lvar2
       lvar[j] = lvar2
       tightened_lvar = true
     end
-    if uvar[j] > uvar2
+    if uvar[j] ≥ uvar2
       uvar[j] = uvar2
       tightened_uvar = true
     end
 
     row_cnt[i] = -1
     kept_rows[i] = false
+    col_cnt[j] -= 1
     push!(operations, SingletonRow{T, S}(i, j, Ax, tightened_lvar, tightened_uvar))
   end
   return singl_row_pass
@@ -65,14 +65,14 @@ end
 
 function postsolve!(pt::OutputPoint{T, S}, operation::SingletonRow{T, S}) where {T, S}
   i, j = operation.i, operation.j
-  dual_slack = -pt.s_l[j] + pt.s_u[j]
   Aij = operation.Aij
-  if operation.tightened_lvar
-    pt.y[i] = dual_slack / Aij
+  pt.y[i] = zero(T)
+  if operation.tightened_lvar 
+    pt.y[i] += pt.s_l[j] / Aij 
     pt.s_l[j] = zero(T)
   end
   if operation.tightened_uvar
-    pt.y[i] = dual_slack / Aij
+    pt.y[i] -= pt.s_u[j] / Aij
     pt.s_u[j] = zero(T)
   end
   if !operation.tightened_lvar && !operation.tightened_uvar
