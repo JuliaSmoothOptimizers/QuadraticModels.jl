@@ -12,8 +12,7 @@ function primal_constraints!(
   row_cnt,
   col_cnt,
 ) where {T, S}
-
-  for i=1:ncon
+  for i = 1:ncon
     (kept_rows[i] && !(lcon[i] == -T(Inf) && ucon[i] == T(Inf))) || continue
     rowi = arows[i]
     uconi2 = zero(T)

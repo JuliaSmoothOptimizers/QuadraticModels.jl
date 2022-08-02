@@ -250,7 +250,8 @@ function presolve(
     infeasible_bnd = check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
 
     infeasible = infeasible_bnd || infeasible_cst
-    reduction_pass = empty_row_pass || singl_row_pass || ifix_pass || free_lsc_pass || free_rows_pass
+    reduction_pass =
+      empty_row_pass || singl_row_pass || ifix_pass || free_lsc_pass || free_rows_pass
     keep_iterating = reduction_pass && !unbounded && !infeasible
     keep_iterating && (nb_pass += 1)
   end
@@ -314,8 +315,7 @@ function presolve(
       multipliers_U = s_u,
       iter = 0,
       elapsed_time = time() - start_time,
-      solver_specific = Dict(:presolvedQM => nothing,
-                             :psoperations => operations),
+      solver_specific = Dict(:presolvedQM => nothing, :psoperations => operations),
     )
   else
     psmeta = NLPModelMeta{T, S}(

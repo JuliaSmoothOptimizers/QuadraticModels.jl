@@ -67,8 +67,8 @@ function postsolve!(pt::OutputPoint{T, S}, operation::SingletonRow{T, S}) where 
   i, j = operation.i, operation.j
   Aij = operation.Aij
   pt.y[i] = zero(T)
-  if operation.tightened_lvar 
-    pt.y[i] += pt.s_l[j] / Aij 
+  if operation.tightened_lvar
+    pt.y[i] += pt.s_l[j] / Aij
     pt.s_l[j] = zero(T)
   end
   if operation.tightened_uvar
