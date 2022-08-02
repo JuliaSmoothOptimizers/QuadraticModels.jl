@@ -58,7 +58,7 @@ function remove_ifix!(
     # store acolj for postsolve
     acolj = Col(zeros(Int, c_acolj), zeros(T, c_acolj))
     c_acolj = 1
-    for k in 1:length(acols[j].nzind)
+    for k = 1:length(acols[j].nzind)
       i = acols[j].nzind[k]
       kept_rows[i] || continue
       aij = acols[j].nzval[k]
