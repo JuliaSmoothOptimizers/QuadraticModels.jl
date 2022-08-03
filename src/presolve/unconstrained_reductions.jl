@@ -41,4 +41,4 @@ function unconstrained_reductions!(
   return unbounded
 end
 
-postsolve!(pt::OutputPoint, operation::UnconstrainedReduction) = nothing
+postsolve!(sol::QMSolution, operation::UnconstrainedReduction) = nothing

@@ -81,8 +81,8 @@ function free_linear_singleton_columns!(
   return free_lsc_pass, c0 + c0_offset
 end
 
-function postsolve!(pt::OutputPoint{T, S}, operation::FreeLinearSingletonColumn{T, S}) where {T, S}
-  x = pt.x
+function postsolve!(sol::QMSolution{T, S}, operation::FreeLinearSingletonColumn{T, S}) where {T, S}
+  x = sol.x
   j = operation.j
   # x[j] = (coival - Σₖ Aik x[k]) / Aij , where k ≂̸ j
   x[j] = operation.conival
@@ -90,7 +90,7 @@ function postsolve!(pt::OutputPoint{T, S}, operation::FreeLinearSingletonColumn{
     x[j] -= Aij * x[i]
   end
   x[j] /= operation.aij
-  pt.s_l[j] = zero(T)
-  pt.s_u[j] = zero(T)
-  pt.y[operation.i] = operation.yi
+  sol.s_l[j] = zero(T)
+  sol.s_u[j] = zero(T)
+  sol.y[operation.i] = operation.yi
 end
