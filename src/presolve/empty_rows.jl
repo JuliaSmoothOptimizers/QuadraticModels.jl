@@ -22,4 +22,4 @@ function empty_rows!(
   return empty_row_pass
 end
 
-postsolve!(pt::OutputPoint, operation::EmptyRow) = nothing
+postsolve!(sol::QMSolution, operation::EmptyRow) = nothing

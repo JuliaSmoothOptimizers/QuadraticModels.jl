@@ -87,15 +87,15 @@ function remove_ifix!(
   return c0ps, ifix_pass
 end
 
-function postsolve!(pt::OutputPoint{T, S}, operation::RemoveIfix{T, S}) where {T, S}
+function postsolve!(sol::QMSolution{T, S}, operation::RemoveIfix{T, S}) where {T, S}
   j = operation.j
-  pt.x[j] = operation.xj
-  ATyj = @views dot(operation.acolj.nzval, pt.y[operation.acolj.nzind])
-  Hxj = @views dot(operation.hcolj.nzval, pt.x[operation.hcolj.nzind])
+  sol.x[j] = operation.xj
+  ATyj = @views dot(operation.acolj.nzval, sol.y[operation.acolj.nzind])
+  Hxj = @views dot(operation.hcolj.nzval, sol.x[operation.hcolj.nzind])
   s = operation.cj + Hxj - ATyj
   if s > zero(T)
-    pt.s_l[j] = s
+    sol.s_l[j] = s
   else
-    pt.s_u[j] = -s
+    sol.s_u[j] = -s
   end
 end

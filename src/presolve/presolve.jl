@@ -1,6 +1,13 @@
 abstract type PresolveOperation{T, S} end
 
-mutable struct OutputPoint{T, S}
+"""
+Type used to define a solution point when using [`postsolve`](@ref).
+
+    sol = QMSolution(x, y, s_l, s_u)
+
+where `s_l` and `s_u` should be of type `SparseVector`.
+"""
+mutable struct QMSolution{T, S}
   x::S
   y::S
   s_l::SparseVector{T, Int}
@@ -347,49 +354,46 @@ end
 function postsolve!(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
-  pt_out::OutputPoint{T, S},
-  x_in::S,
-  y_in::S,
+  sol::QMSolution{T, S},
+  sol_in::QMSolution{T, S},
 ) where {T, S}
+  x_in, y_in = sol_in.x, sol_in.y
   n_operations = length(psqm.psd.operations)
-  nvar = length(pt_out.x)
-  restore_x!(psqm.psd.kept_cols, x_in, pt_out.x, nvar)
-  ncon = length(pt_out.y)
-  restore_y!(psqm.psd.kept_rows, y_in, pt_out.y, ncon)
+  nvar = length(sol.x)
+  restore_x!(psqm.psd.kept_cols, x_in, sol.x, nvar)
+  ncon = length(sol.y)
+  restore_y!(psqm.psd.kept_rows, y_in, sol.y, ncon)
   for i = n_operations:-1:1
     operation_i = psqm.psd.operations[i]
-    postsolve!(pt_out, operation_i)
+    postsolve!(sol, operation_i)
   end
 end
 
 """
-    pt = postsolve(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, 
-                   x_in::S, y_in::S,
-                   s_l_in::SparseVector{T, Int},
-                   s_u_in::SparseVector{T, Int}) where {T, S}
+    sol = postsolve(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, 
+                    sol_in::QMSolution{T, S}) where {T, S}
 
-Retrieve the solution `(x, y, s_l, s_u)` of the original QP `qm` given the solution of the presolved QP (`psqm`)
-`x_in, y_in, s_l_in, s_u_in`.
+Retrieve the solution `sol = (x, y, s_l, s_u)` of the original QP `qm` given the solution of the presolved QP (`psqm`)
+`sol_in` of type [`QMSolution`](@ref).
 """
 function postsolve(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
-  x_in::S,
-  y_in::S,
-  s_l::SparseVector{T, Int},
-  s_u::SparseVector{T, Int},
+  sol_in::QMSolution{T, S},
 ) where {T, S}
-  x_out = similar(qm.meta.x0)
-  y_out = similar(qm.meta.y0)
+  x = similar(qm.meta.x0)
+  y = similar(qm.meta.y0)
+  s_l = sol_in.s_l
+  s_u = sol_in.s_u
 
   ilow, iupp = s_l.nzind, s_u.nzind
   restore_ilow_iupp!(ilow, iupp, psqm.psd.kept_cols)
-  pt_out = OutputPoint(
-    x_out,
-    y_out,
+  sol = QMSolution(
+    x,
+    y,
     SparseVector(qm.meta.nvar, ilow, s_l.nzval),
     SparseVector(qm.meta.nvar, iupp, s_u.nzval),
   )
-  postsolve!(qm, psqm, pt_out, x_in, y_in)
-  return pt_out
+  postsolve!(qm, psqm, sol, sol_in)
+  return sol
 end

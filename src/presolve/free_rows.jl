@@ -21,4 +21,4 @@ function free_rows!(
   return free_row_pass
 end
 
-postsolve!(pt::OutputPoint, operation::FreeRow) = nothing
+postsolve!(sol::QMSolution, operation::FreeRow) = nothing

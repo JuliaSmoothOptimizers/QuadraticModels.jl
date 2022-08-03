@@ -48,12 +48,9 @@
   @test psqp.meta.ifix == Int[]
   @test psqp.meta.nvar == 2
 
-  x_in = [4.0; 7.0]
-  y_in = [2.0; 2.0]
-  s_l = sparse([3.0; 2.0])
-  s_u = sparse([0.0; 0.0])
-  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test pt_out.x == [4.0; 2.0; 7.0]
+  sol_in = QMSolution([4.0; 7.0], [2.0; 2.0], sparse([3.0; 2.0]), sparse([0.0; 0.0]))
+  sol = postsolve(qp, psqp, sol_in)
+  @test sol.x == [4.0; 2.0; 7.0]
 
   # test that solves the problem
   qp2 = QuadraticModel(
@@ -113,12 +110,9 @@ end
   @test psqp.meta.lcon == psqp.meta.ucon == bps_true
   @test psqp.meta.ncon == 3
 
-  x_in = [4.0; 7.0; 4.0]
-  y_in = [2.0; 2.0; 4.0]
-  s_l = sparse([3.0; 4.0; 2.0])
-  s_u = sparse([0.0; 3.0; 0.0])
-  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test pt_out.y == [2.0; 0.0; 0.0; 2.0; 0.0; 4.0]
+  sol_in = QMSolution([4.0; 7.0; 4.0], [2.0; 2.0; 4.0], sparse([3.0; 4.0; 2.0]), sparse([0.0; 3.0; 0.0]))
+  sol = postsolve(qp, psqp, sol_in)
+  @test sol.y == [2.0; 0.0; 0.0; 2.0; 0.0; 4.0]
 end
 
 @testset "presolve singleton rows" begin
@@ -165,12 +159,9 @@ end
   @test Aps == sparse(Aps_true)
   @test psqp.meta.ncon == 2
 
-  x_in = [4.0; 7.0; 4.0]
-  y_in = [2.0; 4.0]
-  s_l = sparse([3.0; 4.0; 2.0])
-  s_u = sparse([0.0; 3.0; 0.0])
-  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test pt_out.y == [2.0; 0.0; 0.0; 1.0; 0.0; 4.0]
+  sol_in = QMSolution([4.0; 7.0; 4.0], [2.0; 4.0], sparse([3.0; 4.0; 2.0]), sparse([0.0; 3.0; 0.0]))
+  sol = postsolve(qp, psqp, sol_in)
+  @test sol.y == [2.0; 0.0; 0.0; 1.0; 0.0; 4.0]
 end
 
 @testset "presolve singleton rows and ifix" begin
@@ -239,10 +230,7 @@ end
   statsps = presolve(qp)
   psqp = statsps.solver_specific[:presolvedQM]
 
-  x_in = [4.0; 4.0]
-  y_in = [2.0; 4.0]
-  s_l = sparse([3.0; 2.0])
-  s_u = sparse([0.0; 0.0])
-  pt_out = postsolve(qp, psqp, x_in, y_in, s_l, s_u)
-  @test pt_out.x ≈ [4.0, -2.5, 4.0]
+  sol_in = QMSolution([4.0; 4.0], [2.0; 4.0], sparse([3.0; 2.0]), sparse([0.0; 0.0]))
+  sol = postsolve(qp, psqp, sol_in)
+  @test sol.x ≈ [4.0, -2.5, 4.0]
 end

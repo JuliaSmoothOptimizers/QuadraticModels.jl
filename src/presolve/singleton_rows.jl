@@ -63,19 +63,19 @@ function singleton_rows!(
   return singl_row_pass
 end
 
-function postsolve!(pt::OutputPoint{T, S}, operation::SingletonRow{T, S}) where {T, S}
+function postsolve!(sol::QMSolution{T, S}, operation::SingletonRow{T, S}) where {T, S}
   i, j = operation.i, operation.j
   Aij = operation.Aij
-  pt.y[i] = zero(T)
+  sol.y[i] = zero(T)
   if operation.tightened_lvar
-    pt.y[i] += pt.s_l[j] / Aij
-    pt.s_l[j] = zero(T)
+    sol.y[i] += sol.s_l[j] / Aij
+    sol.s_l[j] = zero(T)
   end
   if operation.tightened_uvar
-    pt.y[i] -= pt.s_u[j] / Aij
-    pt.s_u[j] = zero(T)
+    sol.y[i] -= sol.s_u[j] / Aij
+    sol.s_u[j] = zero(T)
   end
   if !operation.tightened_lvar && !operation.tightened_uvar
-    pt.y[i] = zero(T)
+    sol.y[i] = zero(T)
   end
 end
