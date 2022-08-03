@@ -110,7 +110,8 @@ end
   @test psqp.meta.lcon == psqp.meta.ucon == bps_true
   @test psqp.meta.ncon == 3
 
-  sol_in = QMSolution([4.0; 7.0; 4.0], [2.0; 2.0; 4.0], sparse([3.0; 4.0; 2.0]), sparse([0.0; 3.0; 0.0]))
+  sol_in =
+    QMSolution([4.0; 7.0; 4.0], [2.0; 2.0; 4.0], sparse([3.0; 4.0; 2.0]), sparse([0.0; 3.0; 0.0]))
   sol = postsolve(qp, psqp, sol_in)
   @test sol.y == [2.0; 0.0; 0.0; 2.0; 0.0; 4.0]
 end
