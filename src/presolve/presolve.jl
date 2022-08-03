@@ -132,6 +132,8 @@ The `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}` is located i
     psqm = stats_ps.solver_specific[:presolvedQM]
 
 and should be used to call [`postsolve`](@ref).
+Maximization problems are transformed to minimization problems.
+If you need the objective of a presolved maximization problem, make sure to take the opposite of the objective of the presolved problem.
 
 If the presolved problem has 0 variables, `stats_ps.solution` contains a solution of the primal problem,
 `stats_ps.multipliers` is a zero `SparseVector`, and, if we define
@@ -148,8 +150,7 @@ function presolve(
   kwargs...,
 ) where {T <: Real, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   start_time = time()
-  @assert qm.meta.minimize
-  psqm = deepcopy(qm)
+  psqm = copy_qm(qm)
   psdata = psqm.data
   c = psdata.c
   lvar, uvar = psqm.meta.lvar, psqm.meta.uvar

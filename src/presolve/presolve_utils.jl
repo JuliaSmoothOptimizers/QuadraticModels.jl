@@ -1,3 +1,40 @@
+function switch_H_to_max!(
+  data::QPData{T, S, M1, M2},
+) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
+  data.H.vals .= .-data.H.vals
+end
+
+function switch_H_to_max!(data::QPData)
+  data.H = -data.H
+end
+
+function copy_qm(qm::QuadraticModel{T, S}) where {T, S}
+  data = deepcopy(qm.data)
+  if !qm.meta.minimize
+    switch_H_to_max!(data)
+    data.c .= .-data.c
+    data.c0 = -data.c0
+    meta = NLPModelMeta{T, S}(
+      qm.meta.nvar,
+      lvar = qm.meta.lvar,
+      uvar = qm.meta.uvar,
+      ncon = qm.meta.ncon,
+      lcon = qm.meta.lcon,
+      ucon = qm.meta.ucon,
+      nnzj = qm.meta.nnzj,
+      nnzh = qm.meta.nnzh,
+      lin = copy(qm.meta.lin),
+      islp = qm.meta.islp,
+      x0 = qm.meta.x0,
+      y0 = qm.meta.y0,
+      minimize = true,
+    )
+  else
+    meta = deepcopy(qm.meta)
+  end
+  return QuadraticModel(meta, qm.counters, data)
+end
+
 function vec_cnt!(v_cnt::Vector{Int}, v)
   for k = 1:length(v)
     i = v[k]
