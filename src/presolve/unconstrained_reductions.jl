@@ -26,7 +26,8 @@ function unconstrained_reductions!(
         xps[j] = lvar[j]
         uvar[j] = lvar[j]
       end
-      xps[j] == -T(Inf) && (unbounded = true)
+      xps[j] == -T(Inf) && c[j] != zero(T) && (unbounded = true)
+      kept_cols[j] = false
       push!(operations, UnconstrainedReduction{T, S}(j))
     else
       continue
@@ -41,4 +42,6 @@ function unconstrained_reductions!(
   return unbounded
 end
 
-postsolve!(sol::QMSolution, operation::UnconstrainedReduction) = nothing
+function postsolve!(sol::QMSolution, operation::UnconstrainedReduction, psd::PresolvedData)
+  psd.kept_cols[operation.j] = true
+end

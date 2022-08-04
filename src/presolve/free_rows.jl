@@ -21,4 +21,6 @@ function free_rows!(
   return free_row_pass
 end
 
-postsolve!(sol::QMSolution, operation::FreeRow) = nothing
+function postsolve!(sol::QMSolution, operation::FreeRow, psd::PresolvedData)
+  psd.kept_rows[operation.i] = true
+end

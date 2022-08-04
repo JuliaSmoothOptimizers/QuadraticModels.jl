@@ -22,4 +22,6 @@ function empty_rows!(
   return empty_row_pass
 end
 
-postsolve!(sol::QMSolution, operation::EmptyRow) = nothing
+function postsolve!(sol::QMSolution, operation::EmptyRow, psd::PresolvedData)
+  psd.kept_rows[operation.i] = true
+end

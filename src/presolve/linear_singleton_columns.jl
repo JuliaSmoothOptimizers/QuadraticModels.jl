@@ -2,7 +2,6 @@ struct FreeLinearSingletonColumn{T, S} <: PresolveOperation{T, S}
   i::Int
   j::Int
   aij::T
-  arowi::Row{T}
   yi::T
   conival::T
 end
@@ -31,8 +30,8 @@ function free_linear_singleton_columns!(
     (kept_cols[j] && (col_cnt[j] == 1)) || continue
     # check infinity bounds and no hessian contribution
     if lvar[j] == -T(Inf) && uvar[j] == T(Inf) && isempty(hcols[j].nzind)
-      # find i the row index of the singleton column j, and Aij
-      Aij = T(Inf)
+      # find i the row index of the singleton column j, and aij
+      aij = T(Inf)
       colj = acols[j]
       k = 1
       i = colj.nzind[k]
@@ -40,36 +39,27 @@ function free_linear_singleton_columns!(
         k += 1
         i = colj.nzind[k]
       end
-      Aij = colj.nzval[k]
+      aij = colj.nzval[k]
 
-      yi = c[j] / Aij
+      yi = c[j] / aij
       nzcj = c[j] != zero(T)
       if yi < zero(T)
         lcon[i] = ucon[i]
       elseif yi > zero(T)
         ucon[i] = lcon[i]
       end
-      if abs(Aij) > sqrt(eps(T))
+      if abs(aij) > sqrt(eps(T))
         nzcj && (c0_offset += yi * ucon[i]) # update c0
-        nb_elem_i = row_cnt[i] - 1
         rowi = arows[i] # i-th row
         # new row to store for postsolve:
-        rowi2 = Row(zeros(Int, nb_elem_i), zeros(T, nb_elem_i))
-        c_i = 1
-        for k = 1:length(rowi.nzind)
-          j2 = rowi.nzind[k]
+        for (l, ail) in zip(rowi.nzind, rowi.nzval)
           # add all col elements to rowi2 except the col j2 == j
-          if kept_cols[j2] && j2 != j
-            rowi2.nzind[c_i] = j2
-            Aij2 = rowi.nzval[k]
-            rowi2.nzval[c_i] = Aij2
-            nzcj && (c[j2] -= yi * Aij2) # update c if c[j] != 0
-            col_cnt[j2] -= 1
-            c_i += 1
-          end
+          (kept_cols[l] && l != j) || continue
+          nzcj && (c[l] -= yi * ail) # update c if c[j] != 0
+          col_cnt[l] -= 1
         end
         conival = nzcj ? ucon[i] : (lcon[i] + ucon[i]) / 2 # constant for postsolve
-        push!(operations, FreeLinearSingletonColumn{T, S}(i, j, Aij, rowi2, yi, conival))
+        push!(operations, FreeLinearSingletonColumn{T, S}(i, j, aij, yi, conival))
         kept_cols[j] = false
         col_cnt[j] = -1
         kept_rows[i] = false
@@ -81,13 +71,22 @@ function free_linear_singleton_columns!(
   return free_lsc_pass, c0 + c0_offset
 end
 
-function postsolve!(sol::QMSolution{T, S}, operation::FreeLinearSingletonColumn{T, S}) where {T, S}
+function postsolve!(
+  sol::QMSolution{T, S},
+  operation::FreeLinearSingletonColumn{T, S},
+  psd::PresolvedData{T, S},
+) where {T, S}
   x = sol.x
-  j = operation.j
-  # x[j] = (coival - Σₖ Aik x[k]) / Aij , where k ≂̸ j
+  kept_rows, kept_cols = psd.kept_rows, psd.kept_cols
+  i, j = operation.i, operation.j
+  arowi = psd.arows[i]
+  kept_rows[i] = true
+  kept_cols[j] = true
+  # x[j] = (coival - Σₖ Aik x[k]) / aij , where k ≂̸ j
   x[j] = operation.conival
-  for (i, Aij) in zip(operation.arowi.nzind, operation.arowi.nzval)
-    x[j] -= Aij * x[i]
+  for (l, ail) in zip(arowi.nzind, arowi.nzval)
+    (l != j && kept_cols[l]) || continue 
+    x[j] -= ail * x[l]
   end
   x[j] /= operation.aij
   sol.s_l[j] = zero(T)

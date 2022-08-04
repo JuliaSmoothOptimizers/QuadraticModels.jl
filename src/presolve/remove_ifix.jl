@@ -2,8 +2,6 @@ struct RemoveIfix{T, S} <: PresolveOperation{T, S}
   j::Int
   xj::T
   cj::T
-  acolj::Col{T}
-  hcolj::Col{T}
 end
 
 # ̃xᵀ̃Hx̃ + ̃ĉᵀx̃ + lⱼ²Hⱼⱼ + cⱼxⱼ + c₀
@@ -55,31 +53,13 @@ function remove_ifix!(
       end
     end
 
-    # store acolj for postsolve
-    acolj = Col(zeros(Int, c_acolj), zeros(T, c_acolj))
-    c_acolj = 1
-    for k = 1:length(acols[j].nzind)
-      i = acols[j].nzind[k]
-      kept_rows[i] || continue
-      aij = acols[j].nzval[k]
-      acolj.nzind[c_acolj] = i
-      acolj.nzval[c_acolj] = aij
-      c_acolj += 1
-    end
-
-    # store hcolj for postsolve
-    hcolj = Col{T}(
-      [i for i in hcols[j].nzind if kept_cols[i]],
-      [hij for (i, hij) in zip(hcols[j].nzind, hcols[j].nzval) if kept_cols[i]],
-    )
-
     # update c0 with c[j] coeff
     c0_offset += c[j] * xj
     xps[j] = xj
     kept_cols[j] = false
     col_cnt[j] = -1
 
-    push!(operations, RemoveIfix{T, S}(j, xj, c[j], acolj, hcolj))
+    push!(operations, RemoveIfix{T, S}(j, xj, c[j]))
   end
   # update c0
   c0ps = c0 + c0_offset
@@ -87,11 +67,30 @@ function remove_ifix!(
   return c0ps, ifix_pass
 end
 
-function postsolve!(sol::QMSolution{T, S}, operation::RemoveIfix{T, S}) where {T, S}
+function postsolve!(
+  sol::QMSolution{T, S},
+  operation::RemoveIfix{T, S},
+  psd::PresolvedData{T, S},
+) where {T, S}
   j = operation.j
-  sol.x[j] = operation.xj
-  ATyj = @views dot(operation.acolj.nzval, sol.y[operation.acolj.nzind])
-  Hxj = @views dot(operation.hcolj.nzval, sol.x[operation.hcolj.nzind])
+  psd.kept_cols[j] = true
+  acolj = psd.acols[j]
+  hcolj = psd.hcols[j]
+  x = sol.x
+  x[j] = operation.xj
+  y = sol.y
+  ATyj = zero(T)
+  for (i, aij) in zip(acolj.nzind, acolj.nzval)
+    psd.kept_rows[i] || continue
+    ATyj += aij * y[i]
+  end
+  # ATyj = @views dot(operation.acolj.nzval, sol.y[operation.acolj.nzind])
+  # Hxj = @views dot(operation.hcolj.nzval, sol.x[operation.hcolj.nzind])
+  Hxj = zero(T)
+  for (i, hij) in zip(hcolj.nzind, hcolj.nzval)
+    psd.kept_cols[i] || continue
+    Hxj += hij * x[i]
+  end
   s = operation.cj + Hxj - ATyj
   if s > zero(T)
     sol.s_l[j] = s

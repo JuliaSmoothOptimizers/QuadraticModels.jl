@@ -1,7 +1,7 @@
 struct SingletonRow{T, S} <: PresolveOperation{T, S}
   i::Int # idx of singleton row
   j::Int
-  Aij::T
+  aij::T
   tightened_lvar::Bool
   tightened_uvar::Bool
 end
@@ -27,7 +27,7 @@ function singleton_rows!(
     singl_row_pass = true
     tightened_lvar = false
     tightened_uvar = false
-    Ax = T(Inf)
+    aij = T(Inf)
     rowi = arows[i]
     k = 1
     j = rowi.nzind[k]
@@ -35,14 +35,14 @@ function singleton_rows!(
       k += 1
       j = rowi.nzind[k]
     end
-    Ax = rowi.nzval[k]
+    aij = rowi.nzval[k]
 
-    if Ax > zero(T)
-      lvar2 = lcon[i] / Ax
-      uvar2 = ucon[i] / Ax
-    elseif Ax < zero(T)
-      uvar2 = lcon[i] / Ax
-      lvar2 = ucon[i] / Ax
+    if aij > zero(T)
+      lvar2 = lcon[i] / aij
+      uvar2 = ucon[i] / aij
+    elseif aij < zero(T)
+      uvar2 = lcon[i] / aij
+      lvar2 = ucon[i] / aij
     else
       error("remove explicit zeros in A")
     end
@@ -58,21 +58,22 @@ function singleton_rows!(
     row_cnt[i] = -1
     kept_rows[i] = false
     col_cnt[j] -= 1
-    push!(operations, SingletonRow{T, S}(i, j, Ax, tightened_lvar, tightened_uvar))
+    push!(operations, SingletonRow{T, S}(i, j, aij, tightened_lvar, tightened_uvar))
   end
   return singl_row_pass
 end
 
-function postsolve!(sol::QMSolution{T, S}, operation::SingletonRow{T, S}) where {T, S}
+function postsolve!(sol::QMSolution{T, S}, operation::SingletonRow{T, S}, psd::PresolvedData{T, S}) where {T, S}
   i, j = operation.i, operation.j
-  Aij = operation.Aij
+  psd.kept_rows[i] = true
+  aij = operation.aij
   sol.y[i] = zero(T)
   if operation.tightened_lvar
-    sol.y[i] += sol.s_l[j] / Aij
+    sol.y[i] += sol.s_l[j] / aij
     sol.s_l[j] = zero(T)
   end
   if operation.tightened_uvar
-    sol.y[i] -= sol.s_u[j] / Aij
+    sol.y[i] -= sol.s_u[j] / aij
     sol.s_u[j] = zero(T)
   end
   if !operation.tightened_lvar && !operation.tightened_uvar

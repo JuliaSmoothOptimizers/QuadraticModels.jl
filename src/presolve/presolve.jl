@@ -71,6 +71,20 @@ function get_hcols(H::SparseMatrixCOO{T}, nvar) where {T}
   return hcols
 end
 
+mutable struct PresolvedData{T, S}
+  xps::S
+  arows::Vector{Row{T}}
+  acols::Vector{Col{T}}
+  hcols::Vector{Col{T}}
+  kept_rows::Vector{Bool}
+  kept_cols::Vector{Bool}
+  nconps::Int
+  nvarps::Int
+  nvar::Int
+  ncon::Int
+  operations::Vector{PresolveOperation{T, S}}
+end
+
 include("presolve_utils.jl")
 include("remove_ifix.jl")
 include("empty_rows.jl")
@@ -80,15 +94,6 @@ include("linear_singleton_columns.jl")
 include("primal_constraints.jl")
 include("free_rows.jl")
 include("postsolve_utils.jl")
-
-mutable struct PresolvedData{T, S}
-  xps::S
-  kept_rows::Vector{Bool}
-  kept_cols::Vector{Bool}
-  nconps::Int
-  nvarps::Int
-  operations::Vector{PresolveOperation{T, S}}
-end
 
 mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
@@ -342,7 +347,19 @@ function presolve(
       minimize = qm.meta.minimize,
       kwargs...,
     )
-    psd = PresolvedData{T, S}(xps, kept_rows, kept_cols, nconps, nvarps, operations)
+    psd = PresolvedData{T, S}(
+      xps,
+      arows,
+      acols,
+      hcols,
+      kept_rows,
+      kept_cols,
+      nconps,
+      nvarps,
+      nvar,
+      ncon,
+      operations,
+    )
     ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
     return GenericExecutionStats(
       :unknown,
@@ -361,14 +378,17 @@ function postsolve!(
   sol_in::QMSolution{T, S},
 ) where {T, S}
   x_in, y_in = sol_in.x, sol_in.y
-  n_operations = length(psqm.psd.operations)
-  nvar = length(sol.x)
-  restore_x!(psqm.psd.kept_cols, x_in, sol.x, nvar)
-  ncon = length(sol.y)
-  restore_y!(psqm.psd.kept_rows, y_in, sol.y, ncon)
+  psd = psqm.psd
+  n_operations = length(psd.operations)
+  nvar = psd.nvar
+  @assert nvar == length(sol.x)
+  restore_x!(psd.kept_cols, x_in, sol.x, nvar)
+  ncon = psd.ncon
+  @assert ncon == length(sol.y)
+  restore_y!(psd.kept_rows, y_in, sol.y, ncon)
   for i = n_operations:-1:1
-    operation_i = psqm.psd.operations[i]
-    postsolve!(sol, operation_i)
+    operation_i = psd.operations[i]
+    postsolve!(sol, operation_i, psd)
   end
 end
 
@@ -384,8 +404,8 @@ function postsolve(
   psqm::PresolvedQuadraticModel{T, S},
   sol_in::QMSolution{T, S},
 ) where {T, S}
-  x = similar(qm.meta.x0)
-  y = similar(qm.meta.y0)
+  x = fill!(S(undef, psqm.psd.nvar), zero(T))
+  y = fill!(S(undef, psqm.psd.ncon), zero(T))
   s_l = sol_in.s_l
   s_u = sol_in.s_u
 
