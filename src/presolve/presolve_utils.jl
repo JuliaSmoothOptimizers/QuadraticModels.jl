@@ -47,94 +47,73 @@ end
 find_empty_rowscols(v_cnt::Vector{Int}) = findall(isequal(0), v_cnt)
 find_singleton_rowscols(v_cnt::Vector{Int}) = findall(isequal(1), v_cnt)
 
-function remove_rowscols_A!(Arows, Acols, Avals, kept_rows, kept_cols, nvar, ncon)
+function remove_rowscols_A_H!(
+  Arows,
+  Acols,
+  Avals,
+  Hrows,
+  Hcols,
+  Hvals,
+  kept_rows,
+  kept_cols,
+  nvar,
+  ncon,
+)
+
+  ps_rows_idx = zeros(Int, ncon)
+  ci = 0
+  for i in 1:ncon
+    if kept_rows[i]
+      ci += 1
+      ps_rows_idx[i] = ci
+    end
+  end
+  ps_cols_idx = zeros(Int, nvar)
+  cj = 0
+  for j in 1:nvar
+    if kept_cols[j]
+      cj += 1
+      ps_cols_idx[j] = cj
+    end
+  end
+
+  # erase old A values
   Annz = length(Arows)
   Arm = 0
-  nb_rm_rows = 0
-  # remove rows
-  for i0 = 1:ncon
-    kept_rows[i0] && continue
-    i = i0 - nb_rm_rows # up idx according to already removed rows
-    nb_rm_rows += 1
-    Awritepos = 1
-    k = 1
-    Arm_tmp = 0
-    while k <= Annz - Arm
-      Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
-      if Ai == i
-        Arm_tmp += 1
-      else
-        Arows[Awritepos] = (Ai < i) ? Ai : Ai - 1
-        Acols[Awritepos] = Aj
-        Avals[Awritepos] = Ax
-        Awritepos += 1
-      end
-      k += 1
+  Awritepos = 0
+  for k in 1:Annz
+    i, j = Arows[k], Acols[k]
+    if (kept_rows[i] && kept_cols[j])
+      Awritepos += 1
+      Arows[Awritepos] = ps_rows_idx[i]
+      Acols[Awritepos] = ps_cols_idx[j]
+      Avals[Awritepos] = Avals[k]
+    else
+      Arm += 1
     end
-    Arm += Arm_tmp
   end
-
-  # remove cols
-  nb_rm_cols = 0
-  for j0 = 1:nvar
-    kept_cols[j0] && continue
-    j = j0 - nb_rm_cols # up idx according to already removed cols
-    nb_rm_cols += 1
-    Awritepos = 1
-    k = 1
-    Arm_tmp = 0
-    while k <= Annz - Arm
-      Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
-      if Aj == j
-        Arm_tmp += 1
-      else
-        Arows[Awritepos] = Ai
-        Acols[Awritepos] = (Aj < j) ? Aj : Aj - 1
-        Avals[Awritepos] = Ax
-        Awritepos += 1
-      end
-      k += 1
-    end
-    Arm += Arm_tmp
-  end
-
   if Arm > 0
     Annz -= Arm
     resize!(Arows, Annz)
     resize!(Acols, Annz)
     resize!(Avals, Annz)
   end
-end
 
-function remove_rowscols_H!(Hrows, Hcols, Hvals, kept_cols, nvar)
+  # erase old H values
   Hnnz = length(Hrows)
   Hrm = 0
-  nb_rm = 0
-  # remove rows and cols
-  for j0 = 1:nvar
-    kept_cols[j0] && continue
-    j = j0 - nb_rm # up idx according to already removed cols
-    nb_rm += 1
-    Hwritepos = 1
-    k = 1
-    Hrm_tmp = 0
-    while k <= Hnnz - Hrm
-      Hi, Hj, Hx = Hrows[k], Hcols[k], Hvals[k]
-      if Hj == j
-        Hrm_tmp += 1
-      elseif Hi == j
-        Hrm_tmp += 1
-      else
-        Hrows[Hwritepos] = (Hi < j) ? Hi : Hi - 1
-        Hcols[Hwritepos] = (Hj < j) ? Hj : Hj - 1
-        Hvals[Hwritepos] = Hx
-        Hwritepos += 1
-      end
-      k += 1
+  Hwritepos = 0
+  for k in 1:Hnnz
+    i, j = Hrows[k], Hcols[k]
+    if (kept_cols[i] && kept_cols[j])
+      Hwritepos += 1
+      Hrows[Hwritepos] = ps_cols_idx[i]
+      Hcols[Hwritepos] = ps_cols_idx[j]
+      Hvals[Hwritepos] = Hvals[k]
+    else
+      Hrm += 1
     end
-    Hrm += Hrm_tmp
   end
-
   if Hrm > 0
     Hnnz -= Hrm
     resize!(Hrows, Hnnz)

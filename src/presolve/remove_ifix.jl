@@ -79,18 +79,19 @@ function postsolve!(
   x = sol.x
   x[j] = operation.xj
   y = sol.y
+
   ATyj = zero(T)
   for (i, aij) in zip(acolj.nzind, acolj.nzval)
     psd.kept_rows[i] || continue
     ATyj += aij * y[i]
   end
-  # ATyj = @views dot(operation.acolj.nzval, sol.y[operation.acolj.nzind])
-  # Hxj = @views dot(operation.hcolj.nzval, sol.x[operation.hcolj.nzind])
+
   Hxj = zero(T)
   for (i, hij) in zip(hcolj.nzind, hcolj.nzval)
     psd.kept_cols[i] || continue
     Hxj += hij * x[i]
   end
+  
   s = operation.cj + Hxj - ATyj
   if s > zero(T)
     sol.s_l[j] = s

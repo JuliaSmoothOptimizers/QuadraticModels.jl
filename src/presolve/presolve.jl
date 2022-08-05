@@ -270,16 +270,18 @@ function presolve(
   end
 
   if !isempty(operations)
-    remove_rowscols_A!(
+    remove_rowscols_A_H!(
       psdata.A.rows,
       psdata.A.cols,
       psdata.A.vals,
+      psdata.H.rows,
+      psdata.H.cols,
+      psdata.H.vals,
       kept_rows,
       kept_cols,
       nvar,
       ncon,
     )
-    remove_rowscols_H!(psdata.H.rows, psdata.H.cols, psdata.H.vals, kept_cols, nvar)
     nconps, nvarps = update_vectors!(lcon, ucon, c, lvar, uvar, kept_rows, kept_cols, ncon, nvar)
   end
 

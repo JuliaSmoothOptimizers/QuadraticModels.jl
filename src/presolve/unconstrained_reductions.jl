@@ -27,7 +27,11 @@ function unconstrained_reductions!(
         uvar[j] = lvar[j]
       end
       xps[j] == -T(Inf) && c[j] != zero(T) && (unbounded = true)
-      kept_cols[j] = false
+      if xps[j] == -T(Inf) && c[j] == zero(T)
+        lvar[j] = zero(T)
+        uvar[j] = zero(T)
+        xps[j] = zero(T)
+      end
       push!(operations, UnconstrainedReduction{T, S}(j))
     else
       continue
