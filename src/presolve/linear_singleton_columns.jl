@@ -72,7 +72,7 @@ function free_linear_singleton_columns!(
 end
 
 function postsolve!(
-  sol::QMSolution{T, S},
+  sol::QMSolution,
   operation::FreeLinearSingletonColumn{T, S},
   psd::PresolvedData{T, S},
 ) where {T, S}

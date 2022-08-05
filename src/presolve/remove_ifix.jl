@@ -68,7 +68,7 @@ function remove_ifix!(
 end
 
 function postsolve!(
-  sol::QMSolution{T, S},
+  sol::QMSolution,
   operation::RemoveIfix{T, S},
   psd::PresolvedData{T, S},
 ) where {T, S}

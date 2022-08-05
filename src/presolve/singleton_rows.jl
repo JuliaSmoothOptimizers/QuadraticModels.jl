@@ -63,7 +63,26 @@ function singleton_rows!(
   return singl_row_pass
 end
 
-function postsolve!(sol::QMSolution{T, S}, operation::SingletonRow{T, S}, psd::PresolvedData{T, S}) where {T, S}
+function setindex2!(x::SparseVector{Tv,Ti}, v::Tv, i::Ti) where {Tv,Ti<:Integer}
+  checkbounds(x, i)
+  nzind = SparseArrays.nonzeroinds(x)
+  nzval = SparseArrays.nonzeros(x)
+
+  m = length(nzind)
+  k = searchsortedfirst(nzind, i)
+  if 1 <= k <= m && nzind[k] == i  # i found
+      println("k = $k  m = $m  i = $i  v = $v")
+      nzval[k] = v
+  else  # i not found
+      if !iszero(v)
+          insert!(nzind, k, i)
+          insert!(nzval, k, v)
+      end
+  end
+  x
+end
+
+function postsolve!(sol::QMSolution, operation::SingletonRow{T, S}, psd::PresolvedData{T, S}) where {T, S}
   i, j = operation.i, operation.j
   psd.kept_rows[i] = true
   aij = operation.aij

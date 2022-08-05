@@ -4,14 +4,12 @@ abstract type PresolveOperation{T, S} end
 Type used to define a solution point when using [`postsolve`](@ref).
 
     sol = QMSolution(x, y, s_l, s_u)
-
-where `s_l` and `s_u` should be of type `SparseVector`.
 """
-mutable struct QMSolution{T, S}
+mutable struct QMSolution{S, V}
   x::S
   y::S
-  s_l::SparseVector{T, Int}
-  s_u::SparseVector{T, Int}
+  s_l::V
+  s_u::V
 end
 
 mutable struct Row{T}
@@ -78,8 +76,8 @@ mutable struct PresolvedData{T, S}
   hcols::Vector{Col{T}}
   kept_rows::Vector{Bool}
   kept_cols::Vector{Bool}
-  nconps::Int
   nvarps::Int
+  nconps::Int
   nvar::Int
   ncon::Int
   operations::Vector{PresolveOperation{T, S}}
@@ -176,6 +174,9 @@ function presolve(
   unbounded = false
   infeasible = false
   operations = PresolveOperation{T, S}[]
+
+  dropzeros!(psdata.A)
+  dropzeros!(psdata.H)
 
   # number of coefficients per row
   vec_cnt!(row_cnt, psdata.A.rows)
@@ -356,8 +357,8 @@ function presolve(
       hcols,
       kept_rows,
       kept_cols,
-      nconps,
       nvarps,
+      nconps,
       nvar,
       ncon,
       operations,
@@ -376,10 +377,10 @@ end
 function postsolve!(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
-  sol::QMSolution{T, S},
-  sol_in::QMSolution{T, S},
+  sol::QMSolution{S},
+  sol_in::QMSolution{S, SparseVector{T, Int}},
 ) where {T, S}
-  x_in, y_in = sol_in.x, sol_in.y
+  x_in, y_in, s_l_in, s_u_in = sol_in.x, sol_in.y, sol_in.s_l, sol_in.s_u
   psd = psqm.psd
   n_operations = length(psd.operations)
   nvar = psd.nvar
@@ -388,6 +389,11 @@ function postsolve!(
   ncon = psd.ncon
   @assert ncon == length(sol.y)
   restore_y!(psd.kept_rows, y_in, sol.y, ncon)
+
+  ilow, iupp = copy(s_l_in.nzind), copy(s_u_in.nzind)
+  restore_ilow_iupp!(ilow, iupp, psd.kept_cols)
+  sol.s_l[ilow] .= s_l_in.nzval
+  sol.s_u[iupp] .= s_u_in.nzval
   for i = n_operations:-1:1
     operation_i = psd.operations[i]
     postsolve!(sol, operation_i, psd)
@@ -404,21 +410,14 @@ Retrieve the solution `sol = (x, y, s_l, s_u)` of the original QP `qm` given the
 function postsolve(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
-  sol_in::QMSolution{T, S},
+  sol_in::QMSolution{S, SparseVector{T, Int}},
 ) where {T, S}
   x = fill!(S(undef, psqm.psd.nvar), zero(T))
   y = fill!(S(undef, psqm.psd.ncon), zero(T))
-  s_l = sol_in.s_l
-  s_u = sol_in.s_u
+  s_l = fill!(S(undef, psqm.psd.nvar), zero(T))
+  s_u = fill!(S(undef, psqm.psd.nvar), zero(T))
 
-  ilow, iupp = s_l.nzind, s_u.nzind
-  restore_ilow_iupp!(ilow, iupp, psqm.psd.kept_cols)
-  sol = QMSolution(
-    x,
-    y,
-    SparseVector(qm.meta.nvar, ilow, s_l.nzval),
-    SparseVector(qm.meta.nvar, iupp, s_u.nzval),
-  )
+  sol = QMSolution(x, y, s_l, s_u)
   postsolve!(qm, psqm, sol, sol_in)
   return sol
 end
