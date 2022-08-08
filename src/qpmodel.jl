@@ -131,7 +131,7 @@ function QuadraticModel(
       lcon = lcon,
       ucon = ucon,
       nnzj = nnzj,
-      lin_nnzj = length(Arows),
+      lin_nnzj = nnzj,
       nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:ncon,
@@ -181,7 +181,7 @@ function QuadraticModel(
       lcon = lcon,
       ucon = ucon,
       nnzj = nnzj,
-      lin_nnzj = nnz(A),
+      lin_nnzj = nnzj,
       nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:ncon,
@@ -364,21 +364,23 @@ NLPModels.hess_coord!(
   obj_weight::Real = one(eltype(x)),
 ) = hess_coord!(qp, x, vals, obj_weight = obj_weight)
 
-function NLPModels.jac_structure!(
+function NLPModels.jac_lin_structure!(
   qp::QuadraticModel{T, S, M1, M2},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1, M2 <: SparseMatrixCOO}
+  @lencheck qp.meta.lin_nnzj rows cols
   rows .= qp.data.A.rows
   cols .= qp.data.A.cols
   return rows, cols
 end
 
-function NLPModels.jac_structure!(
+function NLPModels.jac_lin_structure!(
   qp::QuadraticModel{T, S, M1, M2},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1, M2 <: SparseMatrixCSC}
+  @lencheck qp.meta.lin_nnzj rows cols
   fill_structure!(qp.data.A, rows, cols)
   return rows, cols
 end
@@ -388,6 +390,7 @@ function NLPModels.jac_structure!(
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1, M2 <: Matrix}
+  @lencheck qp.meta.lin_nnzj rows cols
   count = 1
   for j = 1:(qp.meta.nvar)
     for i = 1:(qp.meta.ncon)
@@ -399,32 +402,38 @@ function NLPModels.jac_structure!(
   return rows, cols
 end
 
-function NLPModels.jac_coord!(
+function NLPModels.jac_lin_coord!(
   qp::QuadraticModel{T, S, M1, M2},
   x::AbstractVector,
   vals::AbstractVector,
 ) where {T, S, M1, M2 <: SparseMatrixCOO}
-  NLPModels.increment!(qp, :neval_jac)
+  @lencheck qp.meta.nvar x
+  @lencheck qp.meta.lin_nnzj vals
+  NLPModels.increment!(qp, :neval_jac_lin)
   vals .= qp.data.A.vals
   return vals
 end
 
-function NLPModels.jac_coord!(
+function NLPModels.jac_lin_coord!(
   qp::QuadraticModel{T, S, M1, M2},
   x::AbstractVector,
   vals::AbstractVector,
 ) where {T, S, M1, M2 <: SparseMatrixCSC}
-  NLPModels.increment!(qp, :neval_jac)
+  @lencheck qp.meta.nvar x
+  @lencheck qp.meta.lin_nnzj vals
+  NLPModels.increment!(qp, :neval_jac_lin)
   fill_coord!(qp.data.A, vals, one(T))
   return vals
 end
 
-function NLPModels.jac_coord!(
+function NLPModels.jac_lin_coord!(
   qp::QuadraticModel{T, S, M1, M2},
   x::AbstractVector,
   vals::AbstractVector,
 ) where {T, S, M1, M2 <: Matrix}
-  NLPModels.increment!(qp, :neval_jac)
+  @lencheck qp.meta.nvar x
+  @lencheck qp.meta.lin_nnzj vals
+  NLPModels.increment!(qp, :neval_jac_lin)
   count = 1
   for j = 1:(qp.meta.nvar)
     for i = 1:(qp.meta.ncon)
@@ -435,8 +444,19 @@ function NLPModels.jac_coord!(
   return vals
 end
 
-function NLPModels.cons!(qp::AbstractQuadraticModel, x::AbstractVector, c::AbstractVector)
-  NLPModels.increment!(qp, :neval_cons)
+function NLPModels.jac_lin(
+  qp::QuadraticModel{T, S, M1, M2},
+  x::AbstractVector,
+) where {T, S, M1 <: AbstractLinearOperator, M2 <: AbstractLinearOperator}
+  @lencheck qp.meta.nvar x
+  increment!(qp, :neval_jac_lin)
+  return qp.data.A
+end
+
+function NLPModels.cons_lin!(qp::AbstractQuadraticModel, x::AbstractVector, c::AbstractVector)
+  @lencheck qp.meta.nvar x
+  @lencheck qp.meta.nlin c
+  NLPModels.increment!(qp, :neval_cons_lin)
   mul!(c, qp.data.A, x)
   return c
 end
@@ -465,13 +485,15 @@ NLPModels.hprod!(
   obj_weight::Real = one(eltype(x)),
 ) = hprod!(qp, x, v, Hv, obj_weight = obj_weight)
 
-function NLPModels.jprod!(
+function NLPModels.jprod_lin!(
   qp::AbstractQuadraticModel,
   x::AbstractVector,
   v::AbstractVector,
   Av::AbstractVector,
 )
-  NLPModels.increment!(qp, :neval_jprod)
+  @lencheck qp.meta.nvar x v
+  @lencheck qp.meta.nlin Av
+  NLPModels.increment!(qp, :neval_jprod_lin)
   mul!(Av, qp.data.A, v)
   return Av
 end
@@ -482,7 +504,9 @@ function NLPModels.jtprod!(
   v::AbstractVector,
   Atv::AbstractVector,
 )
-  NLPModels.increment!(qp, :neval_jtprod)
+  @lencheck qp.meta.nvar x Atv
+  @lencheck qp.meta.nlin v
+  NLPModels.increment!(qp, :neval_jtprod_lin)
   mul!(Atv, transpose(qp.data.A), v)
   return Atv
 end
