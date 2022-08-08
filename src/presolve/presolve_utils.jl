@@ -24,6 +24,8 @@ function copy_qm(qm::QuadraticModel{T, S}) where {T, S}
       nnzj = qm.meta.nnzj,
       nnzh = qm.meta.nnzh,
       lin = copy(qm.meta.lin),
+      lin_nnzj = nnz(qm.data.A),
+      nln_nnzj = 0,
       islp = qm.meta.islp,
       x0 = qm.meta.x0,
       y0 = qm.meta.y0,
