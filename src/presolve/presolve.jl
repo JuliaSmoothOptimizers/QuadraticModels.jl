@@ -378,7 +378,7 @@ function postsolve!(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
   sol::QMSolution{S},
-  sol_in::QMSolution{S, SparseVector{T, Int}},
+  sol_in::QMSolution{S},
 ) where {T, S}
   x_in, y_in, s_l_in, s_u_in = sol_in.x, sol_in.y, sol_in.s_l, sol_in.s_u
   psd = psqm.psd
@@ -389,11 +389,8 @@ function postsolve!(
   ncon = psd.ncon
   @assert ncon == length(sol.y)
   restore_y!(psd.kept_rows, y_in, sol.y, ncon)
+  restore_s!(sol.s_l, sol.s_u, s_l_in, s_u_in, psd.kept_cols)
 
-  ilow, iupp = copy(s_l_in.nzind), copy(s_u_in.nzind)
-  restore_ilow_iupp!(ilow, iupp, psd.kept_cols)
-  sol.s_l[ilow] .= s_l_in.nzval
-  sol.s_u[iupp] .= s_u_in.nzval
   for i = n_operations:-1:1
     operation_i = psd.operations[i]
     postsolve!(sol, operation_i, psd)
@@ -402,15 +399,16 @@ end
 
 """
     sol = postsolve(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, 
-                    sol_in::QMSolution{T, S}) where {T, S}
+                    sol_in::QMSolution{S}) where {T, S}
 
 Retrieve the solution `sol = (x, y, s_l, s_u)` of the original QP `qm` given the solution of the presolved QP (`psqm`)
 `sol_in` of type [`QMSolution`](@ref).
+`sol_in.s_l` and `sol_in.s_u` can be sparse or dense vectors, but the output `sol.s_l` and `sol.s_u` are dense vectors. 
 """
 function postsolve(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
-  sol_in::QMSolution{S, SparseVector{T, Int}},
+  sol_in::QMSolution{S},
 ) where {T, S}
   x = fill!(S(undef, psqm.psd.nvar), zero(T))
   y = fill!(S(undef, psqm.psd.ncon), zero(T))
