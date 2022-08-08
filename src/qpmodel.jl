@@ -131,6 +131,8 @@ function QuadraticModel(
       lcon = lcon,
       ucon = ucon,
       nnzj = nnzj,
+      lin_nnzj = length(Arows),
+      nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:ncon,
       islp = (ncon == 0);
@@ -179,6 +181,8 @@ function QuadraticModel(
       lcon = lcon,
       ucon = ucon,
       nnzj = nnzj,
+      lin_nnzj = nnz(A),
+      nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:ncon,
       islp = (ncon == 0);

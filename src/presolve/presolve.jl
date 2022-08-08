@@ -334,6 +334,8 @@ function presolve(
       lcon = lcon,
       ucon = ucon,
       nnzj = nnzj,
+      lin_nnzj = nnz(psdata.A),
+      nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:nconps,
       islp = (nnzh == 0);
