@@ -65,7 +65,7 @@ for problem in NLPModelsTest.nlp_problems
         zeros(nlp.meta.nvar),
         nlp.meta.lvar - x,
         nlp.meta.uvar - x,
-        s -> Ax * s,
+        Ax,
         nlp.meta.lcon - cx,
         nlp.meta.ucon - cx,
       )

@@ -385,7 +385,7 @@ function NLPModels.jac_lin_structure!(
   return rows, cols
 end
 
-function NLPModels.jac_structure!(
+function NLPModels.jac_lin_structure!(
   qp::QuadraticModel{T, S, M1, M2},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
@@ -499,6 +499,19 @@ function NLPModels.jprod_lin!(
 end
 
 function NLPModels.jtprod!(
+  qp::AbstractQuadraticModel,
+  x::AbstractVector,
+  v::AbstractVector,
+  Atv::AbstractVector,
+)
+  @lencheck qp.meta.nvar x Atv
+  @lencheck qp.meta.ncon v
+  NLPModels.increment!(qp, :neval_jtprod)
+  mul!(Atv, transpose(qp.data.A), v)
+  return Atv
+end
+
+function NLPModels.jtprod_lin!(
   qp::AbstractQuadraticModel,
   x::AbstractVector,
   v::AbstractVector,
