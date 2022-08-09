@@ -3,11 +3,11 @@ function eqconqp_autodiff()
   n = 50
   x0 = zeros(n)
   f(x) = sum(i * x[i]^2 for i = 1:n) / 2 + x[1] * x[n]
-  c(x) = [sum(x) - 1.0]
-  lcon = [0.0]
-  ucon = [0.0]
+  lcon = [1.0]
+  ucon = [1.0]
+  A = ones(1, n)
 
-  return ADNLPModel(f, x0, c, lcon, ucon, name = "eqconqp_autodiff")
+  return ADNLPModel(f, x0, sparse(A), lcon, ucon, name = "eqconqp_autodiff")
 end
 
 function eqconqp_QP_dense()
