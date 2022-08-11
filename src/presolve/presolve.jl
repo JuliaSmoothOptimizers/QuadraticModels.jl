@@ -260,6 +260,11 @@ function presolve(
   keep_iterating = true
   infeasible = false
 
+  if fixed_vars_only
+    remove_ifix!(qmp, operations)
+    keep_iterating = false
+  end
+
   while keep_iterating
     empty_rows!(qmp, operations)
     singleton_rows!(qmp, operations)
