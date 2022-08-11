@@ -1,18 +1,11 @@
 function primal_constraints!(
+  qmp::QuadraticModelPresolveData{T, S},
   operations::Vector{PresolveOperation{T, S}},
-  arows::Vector{Row{T}},
-  lcon::S,
-  ucon::S,
-  lvar::S,
-  uvar::S,
-  nvar,
-  ncon,
-  kept_rows,
-  kept_cols,
-  row_cnt,
-  col_cnt,
 ) where {T, S}
-  for i = 1:ncon
+  arows, lcon, ucon, lvar, uvar = qmp.arows, qmp.lcon, qmp.ucon, qmp.lvar, qmp.uvar
+  kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
+  row_cnt, col_cnt = qmp.row_cnt, qmp.col_cnt
+  for i = 1:qmp.ncon
     (kept_rows[i] && !(lcon[i] == -T(Inf) && ucon[i] == T(Inf))) || continue
     rowi = arows[i]
     uconi2 = zero(T)
@@ -24,7 +17,8 @@ function primal_constraints!(
     end
     if uconi2 < lcon[i] || lconi2 > ucon[i]
       @warn "implied bounds for row $i lead to a primal infeasible constraint"
-      return true
+      qmp.infeasible_cst = true
+      return nothing
     elseif uconi2 == lcon[i]
       for (j, aij) in zip(rowi.nzind, rowi.nzval)
         kept_cols[j] || continue
@@ -57,5 +51,4 @@ function primal_constraints!(
       ucon[i] = T(Inf)
     end
   end
-  return false
 end

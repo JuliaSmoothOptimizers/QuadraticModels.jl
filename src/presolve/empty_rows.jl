@@ -3,23 +3,19 @@ struct EmptyRow{T, S} <: PresolveOperation{T, S}
 end
 
 function empty_rows!(
+  qmp::QuadraticModelPresolveData{T, S},
   operations::Vector{PresolveOperation{T, S}},
-  lcon::S,
-  ucon::S,
-  ncon,
-  row_cnt,
-  kept_rows::Vector{Bool},
 ) where {T, S}
-  empty_row_pass = false
-  for i = 1:ncon
+  qmp.empty_row_pass = false
+  lcon, ucon, row_cnt, kept_rows = qmp.lcon, qmp.ucon, qmp.row_cnt, qmp.kept_rows
+  for i = 1:qmp.ncon
     (kept_rows[i] && (row_cnt[i] == 0)) || continue
-    empty_row_pass = true
+    qmp.empty_row_pass = true
     @assert (lcon[i] ≤ zero(T) ≤ ucon[i])
     row_cnt[i] = -1
     kept_rows[i] = false
     push!(operations, EmptyRow{T, S}(i))
   end
-  return empty_row_pass
 end
 
 function postsolve!(sol::QMSolution, operation::EmptyRow, psd::PresolvedData)

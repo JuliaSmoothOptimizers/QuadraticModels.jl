@@ -8,28 +8,20 @@ end
 # ̂c = ̃c + 2lⱼΣₖHⱼₖxₖ , k ≂̸ j
 
 function remove_ifix!(
+  qmp::QuadraticModelPresolveData{T, S},
   operations::Vector{PresolveOperation{T, S}},
-  hcols::Vector{Col{T}},
-  acols::Vector{Col{T}},
-  c::S,
-  c0::T,
-  lvar::S,
-  uvar::S,
-  lcon::S,
-  ucon::S,
-  nvar,
-  row_cnt,
-  col_cnt,
-  kept_rows,
-  kept_cols,
-  xps,
 ) where {T, S}
-  ifix_pass = false
+  qmp.ifix_pass = false
+  hcols, acols = qmp.hcols, qmp.acols
+  c, lvar, uvar, lcon, ucon = qmp.c, qmp.lvar, qmp.uvar, qmp.lcon, qmp.ucon
+  row_cnt, col_cnt = qmp.row_cnt, qmp.col_cnt
+  kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
+  xps = qmp.xps
   c0_offset = zero(T)
 
-  for j = 1:nvar
+  for j = 1:qmp.nvar
     (kept_cols[j] && (lvar[j] == uvar[j])) || continue
-    ifix_pass = true
+    qmp.ifix_pass = true
     xj = lvar[j]
     for k = 1:length(hcols[j].nzind)
       i = hcols[j].nzind[k]
@@ -62,9 +54,7 @@ function remove_ifix!(
     push!(operations, RemoveIfix{T, S}(j, xj, c[j]))
   end
   # update c0
-  c0ps = c0 + c0_offset
-
-  return c0ps, ifix_pass
+  qmp.c0 += c0_offset
 end
 
 function postsolve!(

@@ -7,26 +7,17 @@ struct FreeLinearSingletonColumn{T, S} <: PresolveOperation{T, S}
 end
 
 function free_linear_singleton_columns!(
+  qmp::QuadraticModelPresolveData{T, S},
   operations::Vector{PresolveOperation{T, S}},
-  hcols::Vector{Col{T}},
-  arows::Vector{Row{T}},
-  acols::Vector{Col{T}},
-  c::AbstractVector{T},
-  c0::T,
-  lcon::AbstractVector{T},
-  ucon::AbstractVector{T},
-  lvar::AbstractVector{T},
-  uvar::AbstractVector{T},
-  nvar,
-  row_cnt,
-  col_cnt,
-  kept_rows,
-  kept_cols,
 ) where {T, S}
-  free_lsc_pass = false
+  qmp.free_lsc_pass = false
   c0_offset = zero(T)
+  hcols, arows, acols, c = qmp.hcols, qmp.arows, qmp.acols, qmp.c
+  lcon, ucon, lvar, uvar = qmp.lcon, qmp.ucon, qmp.lvar, qmp.uvar
+  row_cnt, col_cnt = qmp.row_cnt, qmp.col_cnt
+  kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
 
-  for j = 1:nvar
+  for j = 1:qmp.nvar
     (kept_cols[j] && (col_cnt[j] == 1)) || continue
     # check infinity bounds and no hessian contribution
     if lvar[j] == -T(Inf) && uvar[j] == T(Inf) && isempty(hcols[j].nzind)
@@ -64,11 +55,11 @@ function free_linear_singleton_columns!(
         col_cnt[j] = -1
         kept_rows[i] = false
         row_cnt[i] = -1
-        free_lsc_pass = true
+        qmp.free_lsc_pass = true
       end
     end
   end
-  return free_lsc_pass, c0 + c0_offset
+  qmp.c0 += c0_offset
 end
 
 function postsolve!(

@@ -8,6 +8,13 @@ function switch_H_to_max!(data::QPData)
   data.H = -data.H
 end
 
+check_reductions(qmp::QuadraticModelPresolveData) = 
+  qmp.empty_row_pass ||
+  qmp.singl_row_pass ||
+  qmp.ifix_pass ||
+  qmp.free_lsc_pass ||
+  qmp.free_row_pass
+
 function copy_qm(qm::QuadraticModel{T, S}) where {T, S}
   data = deepcopy(qm.data)
   if !qm.meta.minimize
@@ -47,30 +54,21 @@ end
 find_empty_rowscols(v_cnt::Vector{Int}) = findall(isequal(0), v_cnt)
 find_singleton_rowscols(v_cnt::Vector{Int}) = findall(isequal(1), v_cnt)
 
-function remove_rowscols_A_H!(
-  Arows,
-  Acols,
-  Avals,
-  Hrows,
-  Hcols,
-  Hvals,
-  kept_rows,
-  kept_cols,
-  nvar,
-  ncon,
-)
-
-  ps_rows_idx = zeros(Int, ncon)
+function remove_rowscols_A_H!(A, H, qmp::QuadraticModelPresolveData)
+  Arows, Acols, Avals = A.rows, A.cols, A.vals
+  Hrows, Hcols, Hvals = H.rows, H.cols, H.vals
+  kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
+  ps_rows_idx = zeros(Int, qmp.ncon)
   ci = 0
-  for i in 1:ncon
+  for i in 1:qmp.ncon
     if kept_rows[i]
       ci += 1
       ps_rows_idx[i] = ci
     end
   end
-  ps_cols_idx = zeros(Int, nvar)
+  ps_cols_idx = zeros(Int, qmp.nvar)
   cj = 0
-  for j in 1:nvar
+  for j in 1:qmp.nvar
     if kept_cols[j]
       cj += 1
       ps_cols_idx[j] = cj
@@ -122,9 +120,12 @@ function remove_rowscols_A_H!(
   end
 end
 
-function update_vectors!(lcon, ucon, c, lvar, uvar, kept_rows, kept_cols, ncon, nvar)
+function update_vectors!(qmp::QuadraticModelPresolveData)
+  c = qmp.c
+  lcon, ucon, lvar, uvar = qmp.lcon, qmp.ucon, qmp.lvar, qmp.uvar
+  kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
   nconps = 0
-  for i = 1:ncon
+  for i = 1:qmp.ncon
     if kept_rows[i]
       nconps += 1
       lcon[nconps] = lcon[i]
@@ -132,7 +133,7 @@ function update_vectors!(lcon, ucon, c, lvar, uvar, kept_rows, kept_cols, ncon, 
     end
   end
   nvarps = 0
-  for j = 1:nvar
+  for j = 1:qmp.nvar
     if kept_cols[j]
       nvarps += 1
       lvar[nvarps] = lvar[j]

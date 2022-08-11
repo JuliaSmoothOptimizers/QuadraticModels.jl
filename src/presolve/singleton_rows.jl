@@ -7,24 +7,18 @@ struct SingletonRow{T, S} <: PresolveOperation{T, S}
 end
 
 function singleton_rows!(
+  qmp::QuadraticModelPresolveData{T, S},
   operations::Vector{PresolveOperation{T, S}},
-  arows::Vector{Row{T}},
-  lcon::S,
-  ucon::S,
-  lvar,
-  uvar,
-  ncon,
-  row_cnt,
-  col_cnt,
-  kept_rows,
-  kept_cols,
 ) where {T, S}
   # assume Acols is sorted
-  singl_row_pass = false
+  qmp.singl_row_pass = false
+  arows, lcon, ucon, lvar, uvar = qmp.arows, qmp.lcon, qmp.ucon, qmp.lvar, qmp.uvar
+  row_cnt, col_cnt = qmp.row_cnt, qmp.col_cnt
+  kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
 
-  for i = 1:ncon
+  for i = 1:qmp.ncon
     (kept_rows[i] && (row_cnt[i] == 1)) || continue
-    singl_row_pass = true
+    qmp.singl_row_pass = true
     tightened_lvar = false
     tightened_uvar = false
     aij = T(Inf)
@@ -60,7 +54,6 @@ function singleton_rows!(
     col_cnt[j] -= 1
     push!(operations, SingletonRow{T, S}(i, j, aij, tightened_lvar, tightened_uvar))
   end
-  return singl_row_pass
 end
 
 function setindex2!(x::SparseVector{Tv,Ti}, v::Tv, i::Ti) where {Tv,Ti<:Integer}
