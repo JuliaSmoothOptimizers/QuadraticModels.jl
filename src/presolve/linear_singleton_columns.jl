@@ -17,7 +17,7 @@ function free_linear_singleton_columns!(
   row_cnt, col_cnt = qmp.row_cnt, qmp.col_cnt
   kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
 
-  for j = 1:qmp.nvar
+  for j = 1:(qmp.nvar)
     (kept_cols[j] && (col_cnt[j] == 1)) || continue
     # check infinity bounds and no hessian contribution
     if lvar[j] == -T(Inf) && uvar[j] == T(Inf) && isempty(hcols[j].nzind)
@@ -76,7 +76,7 @@ function postsolve!(
   # x[j] = (coival - Σₖ Aik x[k]) / aij , where k ≂̸ j
   x[j] = operation.conival
   for (l, ail) in zip(arowi.nzind, arowi.nzval)
-    (l != j && kept_cols[l]) || continue 
+    (l != j && kept_cols[l]) || continue
     x[j] -= ail * x[l]
   end
   x[j] /= operation.aij

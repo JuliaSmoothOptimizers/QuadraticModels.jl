@@ -19,7 +19,7 @@ function remove_ifix!(
   xps = qmp.xps
   c0_offset = zero(T)
 
-  for j = 1:qmp.nvar
+  for j = 1:(qmp.nvar)
     (kept_cols[j] && (lvar[j] == uvar[j])) || continue
     qmp.ifix_pass = true
     xj = lvar[j]
@@ -81,7 +81,7 @@ function postsolve!(
     psd.kept_cols[i] || continue
     Hxj += hij * x[i]
   end
-  
+
   s = operation.cj + Hxj - ATyj
   if s > zero(T)
     sol.s_l[j] = s

@@ -16,7 +16,7 @@ function singleton_rows!(
   row_cnt, col_cnt = qmp.row_cnt, qmp.col_cnt
   kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
 
-  for i = 1:qmp.ncon
+  for i = 1:(qmp.ncon)
     (kept_rows[i] && (row_cnt[i] == 1)) || continue
     qmp.singl_row_pass = true
     tightened_lvar = false
@@ -56,7 +56,11 @@ function singleton_rows!(
   end
 end
 
-function postsolve!(sol::QMSolution, operation::SingletonRow{T, S}, psd::PresolvedData{T, S}) where {T, S}
+function postsolve!(
+  sol::QMSolution,
+  operation::SingletonRow{T, S},
+  psd::PresolvedData{T, S},
+) where {T, S}
   i, j = operation.i, operation.j
   psd.kept_rows[i] = true
   aij = operation.aij
