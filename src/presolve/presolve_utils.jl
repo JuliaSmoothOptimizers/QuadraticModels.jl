@@ -8,7 +8,7 @@ function switch_H_to_max!(data::QPData)
   data.H = -data.H
 end
 
-check_reductions(qmp::QuadraticModelPresolveData) = 
+check_reductions(qmp::QuadraticModelPresolveData) =
   qmp.empty_row_pass ||
   qmp.singl_row_pass ||
   qmp.ifix_pass ||
@@ -60,7 +60,7 @@ function remove_rowscols_A_H!(A, H, qmp::QuadraticModelPresolveData)
   kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
   ps_rows_idx = zeros(Int, qmp.ncon)
   ci = 0
-  for i in 1:qmp.ncon
+  for i = 1:(qmp.ncon)
     if kept_rows[i]
       ci += 1
       ps_rows_idx[i] = ci
@@ -68,7 +68,7 @@ function remove_rowscols_A_H!(A, H, qmp::QuadraticModelPresolveData)
   end
   ps_cols_idx = zeros(Int, qmp.nvar)
   cj = 0
-  for j in 1:qmp.nvar
+  for j = 1:(qmp.nvar)
     if kept_cols[j]
       cj += 1
       ps_cols_idx[j] = cj
@@ -79,7 +79,7 @@ function remove_rowscols_A_H!(A, H, qmp::QuadraticModelPresolveData)
   Annz = length(Arows)
   Arm = 0
   Awritepos = 0
-  for k in 1:Annz
+  for k = 1:Annz
     i, j = Arows[k], Acols[k]
     if (kept_rows[i] && kept_cols[j])
       Awritepos += 1
@@ -101,7 +101,7 @@ function remove_rowscols_A_H!(A, H, qmp::QuadraticModelPresolveData)
   Hnnz = length(Hrows)
   Hrm = 0
   Hwritepos = 0
-  for k in 1:Hnnz
+  for k = 1:Hnnz
     i, j = Hrows[k], Hcols[k]
     if (kept_cols[i] && kept_cols[j])
       Hwritepos += 1
@@ -125,7 +125,7 @@ function update_vectors!(qmp::QuadraticModelPresolveData)
   lcon, ucon, lvar, uvar = qmp.lcon, qmp.ucon, qmp.lvar, qmp.uvar
   kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
   nconps = 0
-  for i = 1:qmp.ncon
+  for i = 1:(qmp.ncon)
     if kept_rows[i]
       nconps += 1
       lcon[nconps] = lcon[i]
@@ -133,7 +133,7 @@ function update_vectors!(qmp::QuadraticModelPresolveData)
     end
   end
   nvarps = 0
-  for j = 1:qmp.nvar
+  for j = 1:(qmp.nvar)
     if kept_cols[j]
       nvarps += 1
       lvar[nvarps] = lvar[j]

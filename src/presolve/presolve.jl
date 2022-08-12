@@ -145,14 +145,14 @@ end
 function check_bounds!(qmp::QuadraticModelPresolveData)
   lvar, uvar, lcon, ucon = qmp.lvar, qmp.uvar, qmp.lcon, qmp.ucon
   kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
-  for i = 1:qmp.ncon
+  for i = 1:(qmp.ncon)
     if kept_rows[i] && lcon[i] > ucon[i]
       @warn "row $i primal infeasible"
       qmp.infeasible_bnd = true
       return nothing
     end
   end
-  for j = 1:qmp.nvar
+  for j = 1:(qmp.nvar)
     if kept_cols[j] && lvar[j] > uvar[j]
       @warn "col $j primal infeasible"
       qmp.infeasible_bnd = true
@@ -197,7 +197,7 @@ The presolve operations are inspired from [`MathOptPresolve.jl`](https://github.
 function presolve(
   qm::QuadraticModel{T, S, M1, M2};
   fixed_vars_only::Bool = false,
-  kwargs...
+  kwargs...,
 ) where {T <: Real, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   start_time = time()
   psqm = copy_qm(qm)

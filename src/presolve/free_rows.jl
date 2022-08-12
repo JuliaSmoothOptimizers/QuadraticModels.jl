@@ -9,7 +9,7 @@ function free_rows!(
   lcon, ucon = qmp.lcon, qmp.ucon
   row_cnt, kept_rows = qmp.row_cnt, qmp.kept_rows
   qmp.free_row_pass = false
-  for i = 1:qmp.ncon
+  for i = 1:(qmp.ncon)
     (kept_rows[i] && lcon[i] == -T(Inf) && ucon[i] == T(Inf)) || continue
     qmp.free_row_pass = true
     row_cnt[i] = -1

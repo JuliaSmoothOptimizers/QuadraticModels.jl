@@ -8,7 +8,7 @@ function empty_rows!(
 ) where {T, S}
   qmp.empty_row_pass = false
   lcon, ucon, row_cnt, kept_rows = qmp.lcon, qmp.ucon, qmp.row_cnt, qmp.kept_rows
-  for i = 1:qmp.ncon
+  for i = 1:(qmp.ncon)
     (kept_rows[i] && (row_cnt[i] == 0)) || continue
     qmp.empty_row_pass = true
     @assert (lcon[i] ≤ zero(T) ≤ ucon[i])

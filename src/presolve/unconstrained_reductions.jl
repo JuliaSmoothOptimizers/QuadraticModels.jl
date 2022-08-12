@@ -12,7 +12,7 @@ function unconstrained_reductions!(
   col_cnt, kept_cols = qmp.col_cnt, qmp.kept_cols
 
   # assume Hcols sorted
-  for j = 1:qmp.nvar
+  for j = 1:(qmp.nvar)
     (kept_cols[j] && (col_cnt[j] == 0)) || continue
     # check empty rows/col j in H
     if isempty(hcols[j].nzind)
