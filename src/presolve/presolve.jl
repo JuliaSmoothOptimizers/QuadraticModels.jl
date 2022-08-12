@@ -180,6 +180,7 @@ The `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}` is located i
     psqm = stats_ps.solver_specific[:presolvedQM]
 
 and should be used to call [`postsolve`](@ref).
+Use `fixed_vars_only = true` if you only want to remove fixed variables.
 Maximization problems are transformed to minimization problems.
 If you need the objective of a presolved maximization problem, make sure to take the opposite of the objective of the presolved problem.
 
