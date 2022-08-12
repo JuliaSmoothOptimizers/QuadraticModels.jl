@@ -4,14 +4,12 @@ abstract type PresolveOperation{T, S} end
 Type used to define a solution point when using [`postsolve`](@ref).
 
     sol = QMSolution(x, y, s_l, s_u)
-
-where `s_l` and `s_u` should be of type `SparseVector`.
 """
-mutable struct QMSolution{T, S}
+mutable struct QMSolution{S, V}
   x::S
   y::S
-  s_l::SparseVector{T, Int}
-  s_u::SparseVector{T, Int}
+  s_l::V
+  s_u::V
 end
 
 mutable struct Row{T}
@@ -22,6 +20,48 @@ end
 mutable struct Col{T}
   nzind::Vector{Int}
   nzval::Vector{T}
+end
+
+# struct for working data during presolve
+mutable struct QuadraticModelPresolveData{T, S}
+  # presolved x
+  xps::S
+
+  # problem data
+  c::S
+  c0::T
+  arows::Vector{Row{T}}
+  acols::Vector{Col{T}}
+  hcols::Vector{Col{T}}
+  lvar::S
+  uvar::S
+  lcon::S
+  ucon::S
+  nvar::Int
+  ncon::Int
+
+  # current kept rows/cols by presolve
+  kept_rows::Vector{Bool}
+  kept_cols::Vector{Bool}
+
+  # current number of elements per row/col (-1 if not kept)
+  row_cnt::Vector{Int}
+  col_cnt::Vector{Int}
+
+  # pass information for presolve reductions
+  nb_pass::Int # number of passes in the presolve while loop
+  empty_row_pass::Bool
+  singl_row_pass::Bool
+  free_lsc_pass::Bool
+  free_row_pass::Bool
+  ifix_pass::Bool
+
+  # unbounded problem
+  unbounded::Bool
+
+  # infeasible problem
+  infeasible_cst::Bool
+  infeasible_bnd::Bool
 end
 
 function get_arows_acols(A::SparseMatrixCOO{T}, row_cnt, col_cnt, nvar, ncon) where {T}
@@ -71,6 +111,20 @@ function get_hcols(H::SparseMatrixCOO{T}, nvar) where {T}
   return hcols
 end
 
+mutable struct PresolvedData{T, S}
+  xps::S
+  arows::Vector{Row{T}}
+  acols::Vector{Col{T}}
+  hcols::Vector{Col{T}}
+  kept_rows::Vector{Bool}
+  kept_cols::Vector{Bool}
+  nvarps::Int
+  nconps::Int
+  nvar::Int
+  ncon::Int
+  operations::Vector{PresolveOperation{T, S}}
+end
+
 include("presolve_utils.jl")
 include("remove_ifix.jl")
 include("empty_rows.jl")
@@ -81,15 +135,6 @@ include("primal_constraints.jl")
 include("free_rows.jl")
 include("postsolve_utils.jl")
 
-mutable struct PresolvedData{T, S}
-  xps::S
-  kept_rows::Vector{Bool}
-  kept_cols::Vector{Bool}
-  nconps::Int
-  nvarps::Int
-  operations::Vector{PresolveOperation{T, S}}
-end
-
 mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
   counters::Counters
@@ -97,24 +142,27 @@ mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T
   psd::PresolvedData{T, S}
 end
 
-function check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
-  for i = 1:ncon
+function check_bounds!(qmp::QuadraticModelPresolveData)
+  lvar, uvar, lcon, ucon = qmp.lvar, qmp.uvar, qmp.lcon, qmp.ucon
+  kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
+  for i = 1:qmp.ncon
     if kept_rows[i] && lcon[i] > ucon[i]
       @warn "row $i primal infeasible"
-      return true
+      qmp.infeasible_bnd = true
+      return nothing
     end
   end
-  for j = 1:nvar
+  for j = 1:qmp.nvar
     if kept_cols[j] && lvar[j] > uvar[j]
       @warn "col $j primal infeasible"
-      return true
+      qmp.infeasible_bnd = true
+      return nothing
     end
   end
-  return false
 end
 
 """
-    stats_ps = presolve(qm::QuadraticModel{T, S}; kwargs...)
+    stats_ps = presolve(qm::QuadraticModel{T, S}; fixed_vars_only = false, kwargs...)
 
 Apply a presolve routine to `qm` and returns a 
 [`GenericExecutionStats`](https://juliasmoothoptimizers.github.io/SolverCore.jl/stable/reference/#SolverCore.GenericExecutionStats)
@@ -132,6 +180,7 @@ The `PresolvedQuadraticModel{T, S} <: AbstractQuadraticModel{T, S}` is located i
     psqm = stats_ps.solver_specific[:presolvedQM]
 
 and should be used to call [`postsolve`](@ref).
+Use `fixed_vars_only = true` if you only want to remove fixed variables.
 Maximization problems are transformed to minimization problems.
 If you need the objective of a presolved maximization problem, make sure to take the opposite of the objective of the presolved problem.
 
@@ -147,7 +196,8 @@ The presolve operations are inspired from [`MathOptPresolve.jl`](https://github.
 """
 function presolve(
   qm::QuadraticModel{T, S, M1, M2};
-  kwargs...,
+  fixed_vars_only::Bool = false,
+  kwargs...
 ) where {T <: Real, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   start_time = time()
   psqm = copy_qm(qm)
@@ -166,11 +216,9 @@ function presolve(
   nconps = ncon
   nvarps = nvar
   xps = S(undef, nvar)
-  nb_pass = 1
-  keep_iterating = true
-  unbounded = false
-  infeasible = false
-  operations = PresolveOperation{T, S}[]
+
+  dropzeros!(psdata.A)
+  dropzeros!(psdata.H)
 
   # number of coefficients per row
   vec_cnt!(row_cnt, psdata.A.rows)
@@ -182,100 +230,63 @@ function presolve(
   # get list of columns of H
   hcols = get_hcols(psdata.H, nvar)
 
+  qmp = QuadraticModelPresolveData(
+    xps,
+    c,
+    psdata.c0,
+    arows,
+    acols,
+    hcols,
+    lvar,
+    uvar,
+    lcon,
+    ucon,
+    nvar,
+    ncon,
+    kept_rows,
+    kept_cols,
+    row_cnt,
+    col_cnt,
+    0,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  )
+  operations = PresolveOperation{T, S}[]
+  keep_iterating = true
+  infeasible = false
+
+  if fixed_vars_only
+    remove_ifix!(qmp, operations)
+    keep_iterating = false
+  end
+
   while keep_iterating
-    empty_row_pass = empty_rows!(operations, lcon, ucon, ncon, row_cnt, kept_rows)
+    empty_rows!(qmp, operations)
+    singleton_rows!(qmp, operations)
+    unconstrained_reductions!(qmp, operations)
+    free_linear_singleton_columns!(qmp, operations)
+    primal_constraints!(qmp, operations)
+    free_rows!(qmp, operations)
+    remove_ifix!(qmp, operations)
+    check_bounds!(qmp)
 
-    singl_row_pass = singleton_rows!(
-      operations,
-      arows,
-      lcon,
-      ucon,
-      lvar,
-      uvar,
-      ncon,
-      row_cnt,
-      col_cnt,
-      kept_rows,
-      kept_cols,
-    )
-
-    unbounded =
-      unconstrained_reductions!(operations, c, hcols, lvar, uvar, xps, nvar, col_cnt, kept_cols)
-
-    free_lsc_pass, psdata.c0 = free_linear_singleton_columns!(
-      operations,
-      hcols,
-      arows,
-      acols,
-      c,
-      psdata.c0,
-      lcon,
-      ucon,
-      lvar,
-      uvar,
-      nvar,
-      row_cnt,
-      col_cnt,
-      kept_rows,
-      kept_cols,
-    )
-
-    infeasible_cst = primal_constraints!(
-      operations,
-      arows,
-      lcon,
-      ucon,
-      lvar,
-      uvar,
-      nvar,
-      ncon,
-      kept_rows,
-      kept_cols,
-      row_cnt,
-      col_cnt,
-    )
-
-    free_rows_pass = free_rows!(operations, lcon, ucon, ncon, row_cnt, kept_rows)
-
-    psdata.c0, ifix_pass = remove_ifix!(
-      operations,
-      hcols,
-      acols,
-      c,
-      psdata.c0,
-      lvar,
-      uvar,
-      lcon,
-      ucon,
-      nvar,
-      row_cnt,
-      col_cnt,
-      kept_rows,
-      kept_cols,
-      xps,
-    )
-
-    infeasible_bnd = check_bounds(lvar, uvar, lcon, ucon, nvar, ncon, kept_rows, kept_cols)
-
-    infeasible = infeasible_bnd || infeasible_cst
-    reduction_pass =
-      empty_row_pass || singl_row_pass || ifix_pass || free_lsc_pass || free_rows_pass
-    keep_iterating = reduction_pass && !unbounded && !infeasible
-    keep_iterating && (nb_pass += 1)
+    infeasible = qmp.infeasible_bnd || qmp.infeasible_cst
+    # check if some presolve operations have been applied:
+    reduction_pass = check_reductions(qmp)
+    keep_iterating = reduction_pass && !qmp.unbounded && !infeasible
+    keep_iterating && (qmp.nb_pass += 1)
   end
 
   if !isempty(operations)
-    remove_rowscols_A!(
-      psdata.A.rows,
-      psdata.A.cols,
-      psdata.A.vals,
-      kept_rows,
-      kept_cols,
-      nvar,
-      ncon,
-    )
-    remove_rowscols_H!(psdata.H.rows, psdata.H.cols, psdata.H.vals, kept_cols, nvar)
-    nconps, nvarps = update_vectors!(lcon, ucon, c, lvar, uvar, kept_rows, kept_cols, ncon, nvar)
+    remove_rowscols_A_H!(psdata.A, psdata.H, qmp)
+    nconps, nvarps = update_vectors!(qmp)
+    psdata.c0 = qmp.c0
   end
 
   # form meta
@@ -288,11 +299,11 @@ function presolve(
     error("The length of Arows, Acols and Avals must be the same")
   end
 
-  if unbounded
+  if qmp.unbounded
     return GenericExecutionStats(
       :unbounded,
       qm,
-      solution = xps,
+      solution = qmp.xps,
       iter = 0,
       elapsed_time = time() - start_time,
       solver_specific = Dict(:presolvedQM => nothing),
@@ -301,26 +312,22 @@ function presolve(
     return GenericExecutionStats(
       :infeasible,
       qm,
-      solution = xps,
+      solution = qmp.xps,
       iter = 0,
       elapsed_time = time() - start_time,
       solver_specific = Dict(:presolvedQM => nothing),
     )
   elseif nvarps == 0
-    feasible = all(qm.meta.lcon .<= qm.data.A * xps .<= qm.meta.ucon)
-    s = qm.data.c .+ Symmetric(qm.data.H, :L) * xps
-    i_l = findall(s .> zero(T))
-    s_l = sparsevec(i_l, s[i_l])
-    i_u = findall(s .< zero(T))
-    s_u = sparsevec(i_u, .-s[i_u])
+    feasible = all(qm.meta.lcon .<= qm.data.A * qmp.xps .<= qm.meta.ucon)
+    s = qm.data.c .+ Symmetric(qm.data.H, :L) * qmp.xps
     return GenericExecutionStats(
       feasible ? :first_order : :infeasible,
       qm,
-      solution = xps,
-      objective = obj(qm, xps),
+      solution = qmp.xps,
+      objective = obj(qm, qmp.xps),
       multipliers = zeros(T, ncon),
-      multipliers_L = s_l,
-      multipliers_U = s_u,
+      multipliers_L = max.(s, zero(T)),
+      multipliers_U = max.(.-s, zero(T)),
       iter = 0,
       elapsed_time = time() - start_time,
       solver_specific = Dict(:presolvedQM => nothing, :psoperations => operations),
@@ -328,11 +335,11 @@ function presolve(
   else
     psmeta = NLPModelMeta{T, S}(
       nvarps,
-      lvar = lvar,
-      uvar = uvar,
+      lvar = qmp.lvar,
+      uvar = qmp.uvar,
       ncon = nconps,
-      lcon = lcon,
-      ucon = ucon,
+      lcon = qmp.lcon,
+      ucon = qmp.ucon,
       nnzj = nnzj,
       lin_nnzj = nnzj,
       nln_nnzj = 0,
@@ -342,7 +349,19 @@ function presolve(
       minimize = qm.meta.minimize,
       kwargs...,
     )
-    psd = PresolvedData{T, S}(xps, kept_rows, kept_cols, nconps, nvarps, operations)
+    psd = PresolvedData{T, S}(
+      qmp.xps,
+      qmp.arows,
+      qmp.acols,
+      qmp.hcols,
+      qmp.kept_rows,
+      qmp.kept_cols,
+      nvarps,
+      nconps,
+      nvar,
+      ncon,
+      operations,
+    )
     ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
     return GenericExecutionStats(
       :unknown,
@@ -357,46 +376,45 @@ end
 function postsolve!(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
-  sol::QMSolution{T, S},
-  sol_in::QMSolution{T, S},
+  sol::QMSolution{S},
+  sol_in::QMSolution{S},
 ) where {T, S}
-  x_in, y_in = sol_in.x, sol_in.y
-  n_operations = length(psqm.psd.operations)
-  nvar = length(sol.x)
-  restore_x!(psqm.psd.kept_cols, x_in, sol.x, nvar)
-  ncon = length(sol.y)
-  restore_y!(psqm.psd.kept_rows, y_in, sol.y, ncon)
+  x_in, y_in, s_l_in, s_u_in = sol_in.x, sol_in.y, sol_in.s_l, sol_in.s_u
+  psd = psqm.psd
+  n_operations = length(psd.operations)
+  nvar = psd.nvar
+  @assert nvar == length(sol.x)
+  restore_x!(psd.kept_cols, x_in, sol.x, nvar)
+  ncon = psd.ncon
+  @assert ncon == length(sol.y)
+  restore_y!(psd.kept_rows, y_in, sol.y, ncon)
+  restore_s!(sol.s_l, sol.s_u, s_l_in, s_u_in, psd.kept_cols)
+
   for i = n_operations:-1:1
-    operation_i = psqm.psd.operations[i]
-    postsolve!(sol, operation_i)
+    operation_i = psd.operations[i]
+    postsolve!(sol, operation_i, psd)
   end
 end
 
 """
     sol = postsolve(qm::QuadraticModel{T, S}, psqm::PresolvedQuadraticModel{T, S}, 
-                    sol_in::QMSolution{T, S}) where {T, S}
+                    sol_in::QMSolution{S}) where {T, S}
 
 Retrieve the solution `sol = (x, y, s_l, s_u)` of the original QP `qm` given the solution of the presolved QP (`psqm`)
 `sol_in` of type [`QMSolution`](@ref).
+`sol_in.s_l` and `sol_in.s_u` can be sparse or dense vectors, but the output `sol.s_l` and `sol.s_u` are dense vectors. 
 """
 function postsolve(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
-  sol_in::QMSolution{T, S},
+  sol_in::QMSolution{S},
 ) where {T, S}
-  x = similar(qm.meta.x0)
-  y = similar(qm.meta.y0)
-  s_l = sol_in.s_l
-  s_u = sol_in.s_u
+  x = fill!(S(undef, psqm.psd.nvar), zero(T))
+  y = fill!(S(undef, psqm.psd.ncon), zero(T))
+  s_l = fill!(S(undef, psqm.psd.nvar), zero(T))
+  s_u = fill!(S(undef, psqm.psd.nvar), zero(T))
 
-  ilow, iupp = s_l.nzind, s_u.nzind
-  restore_ilow_iupp!(ilow, iupp, psqm.psd.kept_cols)
-  sol = QMSolution(
-    x,
-    y,
-    SparseVector(qm.meta.nvar, ilow, s_l.nzval),
-    SparseVector(qm.meta.nvar, iupp, s_u.nzval),
-  )
+  sol = QMSolution(x, y, s_l, s_u)
   postsolve!(qm, psqm, sol, sol_in)
   return sol
 end

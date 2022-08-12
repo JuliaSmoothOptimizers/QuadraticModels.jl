@@ -3,22 +3,21 @@ struct FreeRow{T, S} <: PresolveOperation{T, S}
 end
 
 function free_rows!(
+  qmp::QuadraticModelPresolveData{T, S},
   operations::Vector{PresolveOperation{T, S}},
-  lcon::S,
-  ucon::S,
-  ncon,
-  row_cnt,
-  kept_rows::Vector{Bool},
 ) where {T, S}
-  free_row_pass = false
-  for i = 1:ncon
+  lcon, ucon = qmp.lcon, qmp.ucon
+  row_cnt, kept_rows = qmp.row_cnt, qmp.kept_rows
+  qmp.free_row_pass = false
+  for i = 1:qmp.ncon
     (kept_rows[i] && lcon[i] == -T(Inf) && ucon[i] == T(Inf)) || continue
-    free_row_pass = true
+    qmp.free_row_pass = true
     row_cnt[i] = -1
     kept_rows[i] = false
     push!(operations, FreeRow{T, S}(i))
   end
-  return free_row_pass
 end
 
-postsolve!(sol::QMSolution, operation::FreeRow) = nothing
+function postsolve!(sol::QMSolution, operation::FreeRow, psd::PresolvedData)
+  psd.kept_rows[operation.i] = true
+end

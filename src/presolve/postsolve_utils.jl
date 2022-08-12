@@ -41,3 +41,28 @@ function restore_ilow_iupp!(ilow, iupp, kept_cols)
     end
   end
 end
+
+function restore_s!(
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  s_l_in::SparseVector{T, Int},
+  s_u_in::SparseVector{T, Int},
+  kept_cols::Vector{Bool},
+) where {T}
+  ilow, iupp = copy(s_l_in.nzind), copy(s_u_in.nzind)
+  restore_ilow_iupp!(ilow, iupp, kept_cols)
+  s_l[ilow] .= s_l_in.nzval
+  s_u[iupp] .= s_u_in.nzval
+end
+
+function restore_s!(
+  s_l::S,
+  s_u::S,
+  s_l_in::S,
+  s_u_in::S,
+  kept_cols::Vector{Bool},
+) where {S <: DenseVector}
+  nvar = length(s_l)
+  restore_x!(kept_cols, s_l_in, s_l, nvar)
+  restore_x!(kept_cols, s_u_in, s_u, nvar)
+end
