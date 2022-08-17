@@ -54,7 +54,7 @@ end
 find_empty_rowscols(v_cnt::Vector{Int}) = findall(isequal(0), v_cnt)
 find_singleton_rowscols(v_cnt::Vector{Int}) = findall(isequal(1), v_cnt)
 
-function remove_rowscols_A_H!(A, H, qmp::QuadraticModelPresolveData)
+function remove_rowscols_A_H!(A, H, qmp::QuadraticModelPresolveData, nvarps, nconps)
   Arows, Acols, Avals = A.rows, A.cols, A.vals
   Hrows, Hcols, Hvals = H.rows, H.cols, H.vals
   kept_rows, kept_cols = qmp.kept_rows, qmp.kept_cols
@@ -118,6 +118,8 @@ function remove_rowscols_A_H!(A, H, qmp::QuadraticModelPresolveData)
     resize!(Hcols, Hnnz)
     resize!(Hvals, Hnnz)
   end
+  A.m, A.n = nconps, nvarps
+  H.m, H.n = nvarps, nvarps
 end
 
 function update_vectors!(qmp::QuadraticModelPresolveData)
