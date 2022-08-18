@@ -38,7 +38,7 @@ for problem in qp_problems_Matrix
   nlp_qm_sparse = eval(Symbol(problem * "_QP_sparse"))()
   nlp_qm_symmetric = eval(Symbol(problem * "_QP_symmetric"))()
   nlps = [nlp_ad, nlp_qm_dense, nlp_qm_sparse, nlp_qm_symmetric, nlp_qps]
-  consistent_nlps(nlps)
+  consistent_nlps(nlps, linear_api = true, reimplemented = ["jtprod"])
   @info "  Consistency checks ✓"
 end
 
@@ -48,7 +48,7 @@ for problem in qp_problems_COO
   nlp_qm = eval(Symbol(problem * "_QP"))()
   nlp_qps = eval(Symbol(problem * "_QPSData"))()
   nlps = [nlp_ad, nlp_qm, nlp_qps]
-  consistent_nlps(nlps)
+  consistent_nlps(nlps, linear_api = true, reimplemented = ["jtprod"])
   @info "  Consistency checks ✓"
 end
 
@@ -79,6 +79,6 @@ for problem in NLPModelsTest.nlp_problems
     end
     nlp_qm = QuadraticModel(nlp, x)
     nlps = [nlp_ad, nlp_qm]
-    consistent_nlps(nlps)
+    consistent_nlps(nlps, linear_api = true, reimplemented = ["jtprod"])
   end
 end
