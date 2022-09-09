@@ -324,7 +324,7 @@ function NLPModels.hess_coord!(
   obj_weight::Real = one(eltype(x)),
 ) where {T, S, M1 <: SparseMatrixCOO}
   NLPModels.increment!(qp, :neval_hess)
-  vals .= obj_weight * qp.data.H.vals
+  vals .= obj_weight .* qp.data.H.vals
   return vals
 end
 
