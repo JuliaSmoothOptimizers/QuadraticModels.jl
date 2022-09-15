@@ -301,8 +301,8 @@ function presolve(
 
   if qmp.unbounded
     return GenericExecutionStats(
-      :unbounded,
       qm,
+      status = :unbounded,
       solution = qmp.xps,
       iter = 0,
       elapsed_time = time() - start_time,
@@ -310,8 +310,8 @@ function presolve(
     )
   elseif infeasible
     return GenericExecutionStats(
-      :infeasible,
       qm,
+      status = :infeasible,
       solution = qmp.xps,
       iter = 0,
       elapsed_time = time() - start_time,
@@ -321,8 +321,8 @@ function presolve(
     feasible = all(qm.meta.lcon .<= qm.data.A * qmp.xps .<= qm.meta.ucon)
     s = qm.data.c .+ Symmetric(qm.data.H, :L) * qmp.xps
     return GenericExecutionStats(
-      feasible ? :first_order : :infeasible,
       qm,
+      status = feasible ? :first_order : :infeasible,
       solution = qmp.xps,
       objective = obj(qm, qmp.xps),
       multipliers = zeros(T, ncon),
@@ -364,8 +364,8 @@ function presolve(
     )
     ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
     return GenericExecutionStats(
-      :unknown,
       ps,
+      status = :unknown,
       iter = 0,
       elapsed_time = time() - start_time,
       solver_specific = Dict(:presolvedQM => ps, :psoperations => operations),
