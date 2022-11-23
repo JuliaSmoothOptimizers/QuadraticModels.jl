@@ -148,10 +148,14 @@ function QuadraticModel(
   )
 end
 
+similar_empty_matrix(H::AbstractMatrix{T}, n::Integer) where {T} = similar(H, 0, n)
+similar_empty_matrix(::SparseMatrixCOO{T, I}, n::Integer) where {T, I} = SparseMatrixCOO(0, n, I[], I[], T[])
+similar_empty_matrix(::AbstractLinearOperator{T}, n::Integer) where {T} = opZeros(T, 0, n)
+
 function QuadraticModel(
   c::S,
   H::Union{AbstractMatrix{T}, AbstractLinearOperator{T}};
-  A::Union{AbstractMatrix, AbstractLinearOperator} = similar(c, 0, length(c)),
+  A::Union{AbstractMatrix, AbstractLinearOperator} = similar_empty_matrix(H, length(c)),
   lcon::S = S(undef, 0),
   ucon::S = S(undef, 0),
   lvar::S = fill!(S(undef, length(c)), T(-Inf)),
