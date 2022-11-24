@@ -207,6 +207,26 @@ end
   @test jtprod(SMLO, x, y) ≈ jtprod(SM, x, y)
   @test objgrad(SMLO, x)[1] ≈ objgrad(SM, x)[1]
   @test objgrad(SMLO, x)[2] ≈ objgrad(SM, x)[2]
+
+  # tests default A value
+  qp = QuadraticModel(
+    c,
+    SparseMatrixCOO(H.data),
+    lvar = lvar,
+    uvar = uvar,
+    c0 = 0.0,
+    name = "QM",
+  )
+  qpLO = QuadraticModel(
+    c,
+    LinearOperator(H),
+    lvar = lvar,
+    uvar = uvar,
+    c0 = 0.0,
+    name = "QMLO",
+  )
+  @test qp.data.A isa SparseMatrixCOO
+  @test qpLO.data.A isa AbstractLinearOperator
 end
 
 @testset "struct and coord CSC" begin
