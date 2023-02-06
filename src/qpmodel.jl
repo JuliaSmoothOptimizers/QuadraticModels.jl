@@ -149,7 +149,8 @@ function QuadraticModel(
 end
 
 similar_empty_matrix(H::AbstractMatrix{T}, n::Integer) where {T} = similar(H, 0, n)
-similar_empty_matrix(::SparseMatrixCOO{T, I}, n::Integer) where {T, I} = SparseMatrixCOO(0, n, I[], I[], T[])
+similar_empty_matrix(::SparseMatrixCOO{T, I}, n::Integer) where {T, I} =
+  SparseMatrixCOO(0, n, I[], I[], T[])
 similar_empty_matrix(::AbstractLinearOperator{T}, n::Integer) where {T} = opZeros(T, 0, n)
 
 function QuadraticModel(
