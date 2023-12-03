@@ -325,6 +325,8 @@ function presolve(
       status = feasible ? :first_order : :infeasible,
       solution = qmp.xps,
       objective = obj(qm, qmp.xps),
+      primal_feas = feasible ? zero(T) : T(Inf),
+      dual_feas = feasible ? zero(T) : T(Inf),
       multipliers = zeros(T, ncon),
       multipliers_L = max.(s, zero(T)),
       multipliers_U = max.(.-s, zero(T)),
