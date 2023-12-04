@@ -67,8 +67,13 @@ function restore_s!(
   restore_x!(kept_cols, s_u_in, s_u, nvar)
 end
 
-function add_Hx!(z::Vector{T}, hcols::Vector{Col{T}}, kept_cols::Vector{Bool}, x::Vector{T}) where {T}
-  for j in 1:length(hcols)
+function add_Hx!(
+  z::Vector{T},
+  hcols::Vector{Col{T}},
+  kept_cols::Vector{Bool},
+  x::Vector{T},
+) where {T}
+  for j = 1:length(hcols)
     hcolj = hcols[j]
     Hxj = zero(T)
     for (i, hij) in zip(hcolj.nzind, hcolj.nzval)

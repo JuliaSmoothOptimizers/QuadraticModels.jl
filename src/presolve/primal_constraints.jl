@@ -81,21 +81,21 @@ function postsolve!(
   add_Hx!(z, psd.hcols, kept_cols, x) # z = c + Hx
   for l = 1:n
     kept_cols[l] || continue
-    for (k, akl) in zip(acols[l].nzind, acols[l].nzval) 
+    for (k, akl) in zip(acols[l].nzind, acols[l].nzval)
       (psd.kept_rows[i] && k != i) || continue
       z[l] -= akl * y[k]
     end
   end
 
   if forced_lcon
-    yi = T(-Inf) 
+    yi = T(-Inf)
     for (l, ail) in zip(arowi.nzind, arowi.nzval)
       (kept_cols[l]) || continue
       trial = z[l] / ail
       (trial > yi) && (yi = trial)
     end
   else
-    yi = T(Inf) 
+    yi = T(Inf)
     for (l, ail) in zip(arowi.nzind, arowi.nzval)
       (kept_cols[l]) || continue
       trial = z[l] / ail
