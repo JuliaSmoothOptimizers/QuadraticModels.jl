@@ -414,10 +414,7 @@ postsolve!(
   sol_in::QMSolution{S},
 ) where {T, S} = postsolve!(psqm.psd, sol, sol_in)
 
-function postsolve(
-  psd::PresolvedData{T, S},
-  sol_in::QMSolution{S},
-) where {T, S}
+function postsolve(psd::PresolvedData{T, S}, sol_in::QMSolution{S}) where {T, S}
   x = fill!(S(undef, psd.nvar), zero(T))
   y = fill!(S(undef, psd.ncon), zero(T))
   s_l = fill!(S(undef, psd.nvar), zero(T))

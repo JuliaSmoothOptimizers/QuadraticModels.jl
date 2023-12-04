@@ -166,25 +166,29 @@ end
 end
 
 @testset "presolve solves problem" begin
-  Q = [6. 2. 1.
-       2. 5. 2.
-       1. 2. 4.]
-  c = [-8.; -3; -3]
-  A = [1. 0. 1.
-       0. 2. 1.]
-  b = [0.; 3]
-  l = [0.;0;0]
+  Q = [
+    6.0 2.0 1.0
+    2.0 5.0 2.0
+    1.0 2.0 4.0
+  ]
+  c = [-8.0; -3; -3]
+  A = [
+    1.0 0.0 1.0
+    0.0 2.0 1.0
+  ]
+  b = [0.0; 3]
+  l = [0.0; 0; 0]
   u = [Inf; Inf; Inf]
   qp = QuadraticModel(
     c,
     SparseMatrixCOO(tril(Q)),
-    A=SparseMatrixCOO(A),
-    lcon=b,
-    ucon=b,
-    lvar=l,
-    uvar=u,
-    c0=0.,
-    name="QM"
+    A = SparseMatrixCOO(A),
+    lcon = b,
+    ucon = b,
+    lvar = l,
+    uvar = u,
+    c0 = 0.0,
+    name = "QM",
   )
   statsps = presolve(qp)
   psqp = statsps.solver_specific[:presolvedQM]
