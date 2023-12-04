@@ -20,4 +20,5 @@ end
 
 function postsolve!(sol::QMSolution, operation::EmptyRow, psd::PresolvedData)
   psd.kept_rows[operation.i] = true
+  sol.y[operation.i] = 0
 end
