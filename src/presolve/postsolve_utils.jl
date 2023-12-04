@@ -1,5 +1,5 @@
 function restore_x!(kept_cols, x_in::S, x::S, nvar) where {S}
-  # put x and xps inside xout according to kept_cols
+  # put x_in inside x according to kept_cols
   cx = 0
   for i = 1:nvar
     if kept_cols[i]
@@ -65,4 +65,17 @@ function restore_s!(
   nvar = length(s_l)
   restore_x!(kept_cols, s_l_in, s_l, nvar)
   restore_x!(kept_cols, s_u_in, s_u, nvar)
+end
+
+function add_Hx!(z::Vector{T}, hcols::Vector{Col{T}}, kept_cols::Vector{Bool}, x::Vector{T}) where {T}
+  for j in 1:length(hcols)
+    hcolj = hcols[j]
+    Hxj = zero(T)
+    for (i, hij) in zip(hcolj.nzind, hcolj.nzval)
+      kept_cols[i] || continue
+      Hxj += hij * x[i]
+    end
+    z[j] += Hxj
+  end
+  return z
 end

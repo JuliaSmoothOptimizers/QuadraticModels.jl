@@ -68,7 +68,10 @@ function postsolve!(
   hcolj = psd.hcols[j]
   x = sol.x
   x[j] = operation.xj
+  cj = operation.cj
   y = sol.y
+  c = psd.c
+  c[j] = cj
 
   ATyj = zero(T)
   for (i, aij) in zip(acolj.nzind, acolj.nzval)
@@ -80,12 +83,10 @@ function postsolve!(
   for (i, hij) in zip(hcolj.nzind, hcolj.nzval)
     psd.kept_cols[i] || continue
     Hxj += hij * x[i]
+    (i != j) && (c[i] -= hij * x[j])
   end
 
-  s = operation.cj + Hxj - ATyj
-  if s > zero(T)
-    sol.s_l[j] = s
-  else
-    sol.s_u[j] = -s
-  end
+  s = cj + Hxj - ATyj
+  sol.s_l[j] = s > zero(T) ? s : zero(T)
+  sol.s_u[j] = s < zero(T) ? -s : zero(T)
 end

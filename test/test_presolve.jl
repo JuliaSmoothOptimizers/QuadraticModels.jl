@@ -165,6 +165,36 @@ end
   @test sol.y == [2.0; 0.0; 0.0; 1.0; 0.0; 4.0]
 end
 
+@testset "presolve solves problem" begin
+  Q = [6. 2. 1.
+       2. 5. 2.
+       1. 2. 4.]
+  c = [-8.; -3; -3]
+  A = [1. 0. 1.
+       0. 2. 1.]
+  b = [0.; 3]
+  l = [0.;0;0]
+  u = [Inf; Inf; Inf]
+  qp = QuadraticModel(
+    c,
+    SparseMatrixCOO(tril(Q)),
+    A=SparseMatrixCOO(A),
+    lcon=b,
+    ucon=b,
+    lvar=l,
+    uvar=u,
+    c0=0.,
+    name="QM"
+  )
+  statsps = presolve(qp)
+  psqp = statsps.solver_specific[:presolvedQM]
+  atol = eps()
+  @test isapprox(statsps.solution, [0.0; 1.5; 0.0], atol = atol)
+  @test isapprox(statsps.objective, 1.125, atol = atol)
+  @test isapprox(statsps.multipliers_L[2], 0.0, atol = atol)
+  @test isapprox(statsps.multipliers_U, [0.0; 0.0; 0.0], atol = atol)
+end
+
 @testset "presolve singleton rows and ifix" begin
   H = [
     6.0 2.0 1.0
@@ -201,7 +231,6 @@ end
 
   @test statsps.status == :first_order
   @test statsps.solution ≈ [4.0 / 3.0; 7.0 / 6.0; 2.0 / 3.0]
-  @test statsps.multipliers == zeros(length(b))
 end
 
 @testset "presolve free col singleton" begin

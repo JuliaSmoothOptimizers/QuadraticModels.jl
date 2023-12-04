@@ -113,6 +113,8 @@ end
 
 mutable struct PresolvedData{T, S}
   xps::S
+  c::S # copy of c
+  z::S # c + Qx for postsolve PrimalConstraints
   arows::Vector{Row{T}}
   acols::Vector{Col{T}}
   hcols::Vector{Col{T}}
@@ -289,6 +291,26 @@ function presolve(
     psdata.c0 = qmp.c0
   end
 
+  # c_ps is the new c padded with zeros to have the same size as the init c 
+  c_ps = fill!(S(undef, nvar), zero(T))
+  restore_x!(qmp.kept_cols, qmp.c, c_ps, nvar)
+  # group all presolve info into a struct
+  psd = PresolvedData{T, S}(
+    qmp.xps,
+    c_ps,
+    copy(c_ps),
+    qmp.arows,
+    qmp.acols,
+    qmp.hcols,
+    qmp.kept_rows,
+    qmp.kept_cols,
+    nvarps,
+    nconps,
+    nvar,
+    ncon,
+    operations,
+  )
+
   # form meta
   nnzh = length(psdata.H.vals)
   if !(nnzh == length(psdata.H.rows) == length(psdata.H.cols))
@@ -318,18 +340,20 @@ function presolve(
       solver_specific = Dict(:presolvedQM => nothing),
     )
   elseif nvarps == 0
+    sol_in = QMSolution(S(undef, 0), fill!(S(undef, nconps), zero(T)), S(undef, 0), S(undef, 0))
+    sol = postsolve(psd, sol_in)
     feasible = all(qm.meta.lcon .<= qm.data.A * qmp.xps .<= qm.meta.ucon)
-    s = qm.data.c .+ Symmetric(qm.data.H, :L) * qmp.xps
+    # s = qm.data.c .+ Symmetric(qm.data.H, :L) * qmp.xps
     return GenericExecutionStats(
       qm,
       status = feasible ? :first_order : :infeasible,
-      solution = qmp.xps,
-      objective = obj(qm, qmp.xps),
+      solution = sol.x,
+      objective = obj(qm, sol.x),
       primal_feas = feasible ? zero(T) : T(Inf),
       dual_feas = feasible ? zero(T) : T(Inf),
-      multipliers = zeros(T, ncon),
-      multipliers_L = max.(s, zero(T)),
-      multipliers_U = max.(.-s, zero(T)),
+      multipliers = sol.y,
+      multipliers_L = sol.s_l,
+      multipliers_U = sol.s_u,
       iter = 0,
       elapsed_time = time() - start_time,
       solver_specific = Dict(:presolvedQM => nothing, :psoperations => operations),
@@ -351,19 +375,6 @@ function presolve(
       minimize = qm.meta.minimize,
       kwargs...,
     )
-    psd = PresolvedData{T, S}(
-      qmp.xps,
-      qmp.arows,
-      qmp.acols,
-      qmp.hcols,
-      qmp.kept_rows,
-      qmp.kept_cols,
-      nvarps,
-      nconps,
-      nvar,
-      ncon,
-      operations,
-    )
     ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
     return GenericExecutionStats(
       ps,
@@ -376,13 +387,11 @@ function presolve(
 end
 
 function postsolve!(
-  qm::QuadraticModel{T, S},
-  psqm::PresolvedQuadraticModel{T, S},
+  psd::PresolvedData{T, S},
   sol::QMSolution{S},
   sol_in::QMSolution{S},
 ) where {T, S}
   x_in, y_in, s_l_in, s_u_in = sol_in.x, sol_in.y, sol_in.s_l, sol_in.s_u
-  psd = psqm.psd
   n_operations = length(psd.operations)
   nvar = psd.nvar
   @assert nvar == length(sol.x)
@@ -391,11 +400,32 @@ function postsolve!(
   @assert ncon == length(sol.y)
   restore_y!(psd.kept_rows, y_in, sol.y, ncon)
   restore_s!(sol.s_l, sol.s_u, s_l_in, s_u_in, psd.kept_cols)
+  # add_Hx!(psd.z, psd.hcols, psd.kept_cols) # z = c + Hx
 
   for i = n_operations:-1:1
     operation_i = psd.operations[i]
     postsolve!(sol, operation_i, psd)
   end
+end
+
+postsolve!(
+  psqm::PresolvedQuadraticModel{T, S},
+  sol::QMSolution{S},
+  sol_in::QMSolution{S},
+) where {T, S} = postsolve!(psqm.psd, sol, sol_in)
+
+function postsolve(
+  psd::PresolvedData{T, S},
+  sol_in::QMSolution{S},
+) where {T, S}
+  x = fill!(S(undef, psd.nvar), zero(T))
+  y = fill!(S(undef, psd.ncon), zero(T))
+  s_l = fill!(S(undef, psd.nvar), zero(T))
+  s_u = fill!(S(undef, psd.nvar), zero(T))
+
+  sol = QMSolution(x, y, s_l, s_u)
+  postsolve!(psd, sol, sol_in)
+  return sol
 end
 
 """
@@ -406,17 +436,8 @@ Retrieve the solution `sol = (x, y, s_l, s_u)` of the original QP `qm` given the
 `sol_in` of type [`QMSolution`](@ref).
 `sol_in.s_l` and `sol_in.s_u` can be sparse or dense vectors, but the output `sol.s_l` and `sol.s_u` are dense vectors. 
 """
-function postsolve(
+postsolve(
   qm::QuadraticModel{T, S},
   psqm::PresolvedQuadraticModel{T, S},
   sol_in::QMSolution{S},
-) where {T, S}
-  x = fill!(S(undef, psqm.psd.nvar), zero(T))
-  y = fill!(S(undef, psqm.psd.ncon), zero(T))
-  s_l = fill!(S(undef, psqm.psd.nvar), zero(T))
-  s_u = fill!(S(undef, psqm.psd.nvar), zero(T))
-
-  sol = QMSolution(x, y, s_l, s_u)
-  postsolve!(qm, psqm, sol, sol_in)
-  return sol
-end
+) where {T, S} = postsolve(psqm.psd, sol_in)
