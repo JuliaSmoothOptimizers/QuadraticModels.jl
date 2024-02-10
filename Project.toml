@@ -1,6 +1,5 @@
 name = "QuadraticModels"
 uuid = "f468eda6-eac5-11e8-05a5-ff9e497bcd19"
-authors = ["Dominique Orban <dominique.orban@gmail.com>"]
 version = "0.9.5"
 
 [deps]
