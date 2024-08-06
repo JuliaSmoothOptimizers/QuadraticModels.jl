@@ -57,7 +57,7 @@ for problem in NLPModelsTest.nlp_problems
     nlp = eval(Symbol(problem))()
     x = nlp.meta.x0
 
-    fx, gx, Hx = obj(nlp, x), grad(nlp, x), Symmetric(hess(nlp, x), :L)
+    fx, gx, Hx = obj(nlp, x), grad(nlp, x), hess(nlp, x)
     nlp_ad = if nlp.meta.ncon > 0
       cx, Ax = cons(nlp, x), jac(nlp, x)
       ADNLPModel(
@@ -68,6 +68,7 @@ for problem in NLPModelsTest.nlp_problems
         Ax,
         nlp.meta.lcon - cx,
         nlp.meta.ucon - cx,
+        detector = SparseConnectivityTracer.TracerLocalSparsityDetector(),
       )
     else
       ADNLPModel(
@@ -75,6 +76,7 @@ for problem in NLPModelsTest.nlp_problems
         zeros(nlp.meta.nvar),
         nlp.meta.lvar - x,
         nlp.meta.uvar - x,
+        detector = SparseConnectivityTracer.TracerLocalSparsityDetector(),
       )
     end
     nlp_qm = QuadraticModel(nlp, x)

@@ -9,6 +9,7 @@ using ADNLPModels,
   NLPModelsTest,
   QPSReader,
   QuadraticModels,
+  SparseConnectivityTracer,
   SparseMatricesCOO
 
 @testset "test utils" begin
