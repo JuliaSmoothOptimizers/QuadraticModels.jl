@@ -3,14 +3,14 @@ using Documenter, QuadraticModels
 makedocs(
   modules = [QuadraticModels],
   doctest = true,
-  # linkcheck = true,
-  strict = true,
+  linkcheck = true,
   format = Documenter.HTML(
     assets = ["assets/style.css"],
+    ansicolor = true,
     prettyurls = get(ENV, "CI", nothing) == "true",
   ),
   sitename = "QuadraticModels.jl",
-  pages = Any["Home" => "index.md", "Tutorial" => "tutorial.md", "Reference" => "reference.md"],
+  pages = ["Home" => "index.md", "Tutorial" => "tutorial.md", "Reference" => "reference.md"],
 )
 
 deploydocs(
