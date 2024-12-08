@@ -68,7 +68,6 @@ for problem in NLPModelsTest.nlp_problems
         Ax,
         nlp.meta.lcon - cx,
         nlp.meta.ucon - cx,
-        detector = SparseConnectivityTracer.TracerLocalSparsityDetector(),
       )
     else
       ADNLPModel(
@@ -76,7 +75,6 @@ for problem in NLPModelsTest.nlp_problems
         zeros(nlp.meta.nvar),
         nlp.meta.lvar - x,
         nlp.meta.uvar - x,
-        detector = SparseConnectivityTracer.TracerLocalSparsityDetector(),
       )
     end
     nlp_qm = QuadraticModel(nlp, x)
