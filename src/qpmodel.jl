@@ -8,10 +8,12 @@ mutable struct QPData{
 }
   c0::T         # constant term in objective
   c::S          # linear term
+  v::S          # vector that stores products with the hessian v = H*
   H::M1
   A::M2
 end
 
+@inline QPData(c0, c, H, A) = QPData(c0, c, similar(c), H, A)
 isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = M1 <: DenseMatrix || M2 <: DenseMatrix
 
 function Base.convert(
@@ -20,7 +22,7 @@ function Base.convert(
 ) where {T, S, M1 <: AbstractMatrix, M2 <: AbstractMatrix, MCOO <: SparseMatrixCOO{T}}
   HCOO = (M1 <: SparseMatrixCOO) ? data.H : SparseMatrixCOO(data.H)
   ACOO = (M2 <: SparseMatrixCOO) ? data.A : SparseMatrixCOO(data.A)
-  return QPData(data.c0, data.c, HCOO, ACOO)
+  return QPData(data.c0, data.c, data.v, HCOO, ACOO)
 end
 Base.convert(
   ::Type{QPData{T, S, MCOO, MCOO}},
@@ -256,9 +258,8 @@ end
 
 function NLPModels.obj(qp::AbstractQuadraticModel{T, S}, x::AbstractVector) where {T, S}
   NLPModels.increment!(qp, :neval_obj)
-  Hx = fill!(S(undef, qp.meta.nvar), zero(T))
-  mul!(Hx, Symmetric(qp.data.H, :L), x)
-  return qp.data.c0 + dot(qp.data.c, x) + dot(Hx, x) / 2
+  mul!(qp.data.v, Symmetric(qp.data.H, :L), x)
+  return qp.data.c0 + dot(qp.data.c, x) + dot(qp.data.v, x) / 2
 end
 
 function NLPModels.grad!(qp::AbstractQuadraticModel, x::AbstractVector, g::AbstractVector)
