@@ -259,3 +259,4 @@ end
 end
 
 include("test_presolve.jl")
+include("test_allocations.jl")
