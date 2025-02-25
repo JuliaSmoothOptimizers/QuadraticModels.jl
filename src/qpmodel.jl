@@ -8,7 +8,7 @@ mutable struct QPData{
 }
   c0::T         # constant term in objective
   c::S          # linear term
-  v::S          # vector that stores products with the hessian v = H*
+  v::S          # vector that stores products with the hessian v = H*u
   H::M1
   A::M2
 end
