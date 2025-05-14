@@ -1,6 +1,6 @@
 name = "QuadraticModels"
 uuid = "f468eda6-eac5-11e8-05a5-ff9e497bcd19"
-version = "0.9.8"
+version = "0.9.9"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
