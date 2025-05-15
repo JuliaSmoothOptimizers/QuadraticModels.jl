@@ -13,7 +13,7 @@ The problems represented have the form
 <p align="center">
 optimize &nbsp; c₀ + cᵀ x + ½ xᵀ Q x
 &nbsp;&nbsp;
-subject to &nbsp; L ≤ Ax ≤ U and ℓ ≤ x ≤ u,
+subject to &nbsp; L ≤ Ax ≤ U and ℓ ≤ x ≤ u,
 </p>
 
 where the square symmetric matrix Q is zero for linear optimization problems.

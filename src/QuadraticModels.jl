@@ -6,9 +6,6 @@ using LinearAlgebra, SparseArrays
 # our packages
 using LinearOperators, NLPModels, NLPModelsModifiers, SolverCore, SparseMatricesCOO
 
-# auxiliary packages
-using Requires
-
 import NLPModels:
   objgrad,
   objgrad!,
@@ -35,9 +32,5 @@ export AbstractQuadraticModel, QuadraticModel, presolve, postsolve, postsolve!, 
 include("linalg_utils.jl")
 include("qpmodel.jl")
 include("presolve/presolve.jl")
-
-function __init__()
-  @require QPSReader = "10f199a5-22af-520b-b891-7ce84a7b1bd0" include("qps.jl")
-end
 
 end # module
