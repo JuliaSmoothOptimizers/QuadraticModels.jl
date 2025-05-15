@@ -1,7 +1,10 @@
-using .QPSReader
+module QuadraticModelsQPSReaderExt
 
-function QuadraticModel(qps::QPSData, x0 = zeros(qps.nvar))
-  QuadraticModel(
+import QuadraticModels
+import QPSReader
+
+function QuadraticModels.QuadraticModel(qps::QPSReader.QPSData, x0 = zeros(qps.nvar))
+  QuadraticModels.QuadraticModel(
     qps.c,
     qps.qrows,
     qps.qcols,
@@ -16,4 +19,6 @@ function QuadraticModel(qps::QPSData, x0 = zeros(qps.nvar))
     c0 = qps.c0,
     x0 = x0,
   )
+end
+
 end
