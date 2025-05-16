@@ -99,7 +99,7 @@ function LinearModel(
   nnzh = 0
   nnzj = nnz(A)
   H = similar_empty_matrix(A, length(c))
-  data = QPData(c0, c, H, A)
+  data = QPData(c0, c, H, A; lp=true)
 
   LinearModel(
     NLPModelMeta{T, S}(
@@ -163,7 +163,7 @@ function NLPModels.objgrad!(qp::LinearModel, x::AbstractVector, g::AbstractVecto
   NLPModels.increment!(qp, :neval_obj)
   NLPModels.increment!(qp, :neval_grad)
   f = qp.data.c0 + dot(qp.data.c, x)
-  g .+= qp.data.c
+  g .= qp.data.c
   return f, g
 end
 
