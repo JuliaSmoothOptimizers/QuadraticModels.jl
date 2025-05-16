@@ -114,7 +114,7 @@ function LinearModel(
       nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:ncon,
-      islp = (ncon == 0);
+      islp = true;
       kwargs...,
     ),
     Counters(),

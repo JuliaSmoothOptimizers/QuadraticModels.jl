@@ -192,7 +192,7 @@ function QuadraticModel(
       nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:ncon,
-      islp = (ncon == 0);
+      islp = (nnzh == 0);
       kwargs...,
     ),
     Counters(),
