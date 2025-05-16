@@ -137,7 +137,7 @@ include("primal_constraints.jl")
 include("free_rows.jl")
 include("postsolve_utils.jl")
 
-mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
+mutable struct PresolvedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S, M1, M2}
   meta::NLPModelMeta{T, S}
   counters::Counters
   data::QPData{T, S, M1, M2}
