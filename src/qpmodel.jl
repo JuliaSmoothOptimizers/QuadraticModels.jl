@@ -13,7 +13,7 @@ mutable struct QPData{
   A::M2
 end
 
-QPData(c0, c, H, A) = QPData(c0, c, similar(c), H, A)
+QPData(c0, c, H, A; lp::Bool=false) = QPData(c0, c, lp ? similar(c): similar(c, 0), H, A)
 isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = M1 <: DenseMatrix || M2 <: DenseMatrix
 
 function Base.convert(
@@ -29,7 +29,7 @@ Base.convert(
   data::QPData{T, S, M1, M2},
 ) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO, MCOO <: SparseMatrixCOO{T}} = data
 
-abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
+abstract type AbstractQuadraticModel{T, S, M1, M2} <: AbstractNLPModel{T, S} end
 
 """
     qp = QuadraticModel(c, Hrows, Hcols, Hvals; Arows = Arows, Acols = Acols, Avals = Avals, 
@@ -137,7 +137,7 @@ function QuadraticModel(
       nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:ncon,
-      islp = (nnzh == 0);
+      islp = false;
       kwargs...,
     ),
     Counters(),
@@ -192,7 +192,7 @@ function QuadraticModel(
       nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:ncon,
-      islp = (nnzh == 0);
+      islp = false;
       kwargs...,
     ),
     Counters(),
