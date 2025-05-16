@@ -66,7 +66,7 @@ based on a `QPData` with dense matrices will convert the field `data` to a `QPDa
 Its in-place variant `SlackModel!` specific to QuadraticModels will only work with a `QuadraticModel` based on
 a `QPData` with SparseMatricesCOO.
 """
-mutable struct QuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
+mutable struct QuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S, M1, M2}
   meta::NLPModelMeta{T, S}
   counters::Counters
   data::QPData{T, S, M1, M2}
