@@ -13,7 +13,7 @@ mutable struct QPData{
   A::M2
 end
 
-QPData(c0, c, H, A; lp::Bool=false) = QPData(c0, c, lp ? similar(c): similar(c, 0), H, A)
+QPData(c0, c, H, A; lp::Bool=false) = QPData(c0, c, lp ? similar(c, 0) : similar(c), H, A)
 isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = M1 <: DenseMatrix || M2 <: DenseMatrix
 
 function Base.convert(
