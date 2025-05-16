@@ -17,7 +17,7 @@ create a Linear model from a QPS file:
     qps = readqps("QAFIRO.SIF")
     lp = LinearModel(qps)
 """
-mutable struct LinearModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
+mutable struct LinearModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S, M1, M2}
   meta::NLPModelMeta{T, S}
   counters::Counters
   data::QPData{T, S, M1, M2}
