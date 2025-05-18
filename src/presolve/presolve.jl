@@ -287,7 +287,9 @@ function presolve(
 
   if !isempty(operations)
     nconps, nvarps = update_vectors!(qmp)
-    remove_rowscols_A_H!(psdata.A, psdata.H, qmp, nvarps, nconps)
+    Anew, Hnew = remove_rowscols_A_H!(psdata.A, psdata.H, qmp, nvarps, nconps)
+    psdata.A = Anew
+    psdata.H = Hnew
     psdata.c0 = qmp.c0
   end
 
