@@ -21,19 +21,4 @@ function QuadraticModels.QuadraticModel(qps::QPSReader.QPSData, x0 = zeros(qps.n
   )
 end
 
-function QuadraticModels.LinearModel(qps::QPSReader.QPSData, x0 = zeros(qps.nvar))
-  QuadraticModels.LinearModel(
-    qps.c,
-    Arows = qps.arows,
-    Acols = qps.acols,
-    Avals = qps.avals,
-    lcon = qps.lcon,
-    ucon = qps.ucon,
-    lvar = qps.lvar,
-    uvar = qps.uvar,
-    c0 = qps.c0,
-    x0 = x0,
-  )
-end
-
 end

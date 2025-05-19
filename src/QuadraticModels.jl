@@ -27,11 +27,10 @@ import NLPModelsModifiers: SlackModel, slack_meta
 
 import Base.convert
 
-export AbstractQuadraticModel, LinearModel, QuadraticModel, presolve, postsolve, postsolve!, QMSolution
+export AbstractQuadraticModel, QuadraticModel, presolve, postsolve, postsolve!, QMSolution
 
 include("linalg_utils.jl")
 include("qpmodel.jl")
-include("lpmodel.jl")
 include("presolve/presolve.jl")
 
 end # module
