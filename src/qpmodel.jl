@@ -51,7 +51,7 @@ With the first constructor, if `sortcols = true`, then `Hcols` and `Acols` are s
     lp = QuadraticModel(c, A; lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar, c0 = c0)
 
 Create a Linear model ``c^T x + c_0`` with linear constraints `lcon ≦ Ax ≦ ucon` and
-optional bounds `lvar ≦ x ≦ uvar` and .
+optional bounds `lvar ≦ x ≦ uvar`.
 
 You can also use [`QPSReader.jl`](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) to
 create a Quadratic model from a QPS file:
@@ -511,7 +511,7 @@ NLPModels.hess_coord!(
 ) = hess_coord!(qp, x, vals, obj_weight = obj_weight)
 
 function NLPModels.jac_lin_structure!(
-  qp::AbstractQuadraticModell{T, S, M1, M2},
+  qp::AbstractQuadraticModel{T, S, M1, M2},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1, M2 <: SparseMatrixCOO}
