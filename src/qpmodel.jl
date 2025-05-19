@@ -361,7 +361,7 @@ end
 
 linobj(qp::AbstractQuadraticModel, args...) = qp.data.c
 
-function NLPModels.objgrad!(qp::QuadraticModel, x::AbstractVector, g::AbstractVector)
+function NLPModels.objgrad!(qp::AbstractQuadraticModel, x::AbstractVector, g::AbstractVector)
   NLPModels.increment!(qp, :neval_obj)
   NLPModels.increment!(qp, :neval_grad)
   if qp.meta.islp
@@ -375,7 +375,7 @@ function NLPModels.objgrad!(qp::QuadraticModel, x::AbstractVector, g::AbstractVe
   return f, g
 end
 
-function NLPModels.obj(qp::QuadraticModel, x::AbstractVector)
+function NLPModels.obj(qp::AbstractQuadraticModel, x::AbstractVector)
   NLPModels.increment!(qp, :neval_obj)
   if qp.meta.islp
     f = qp.data.c0 + dot(qp.data.c, x)
@@ -386,7 +386,7 @@ function NLPModels.obj(qp::QuadraticModel, x::AbstractVector)
   return f
 end
 
-function NLPModels.grad!(qp::QuadraticModel, x::AbstractVector, g::AbstractVector)
+function NLPModels.grad!(qp::AbstractQuadraticModel, x::AbstractVector, g::AbstractVector)
   NLPModels.increment!(qp, :neval_grad)
   if qp.meta.islp
     g .= qp.data.c
@@ -409,7 +409,7 @@ function fill_structure!(S::SparseMatrixCSC, rows, cols)
 end
 
 function NLPModels.hess_structure!(
-  qp::QuadraticModel{T, S, M1},
+  qp::AbstractQuadraticModel{T, S, M1},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1 <: SparseMatrixCOO}
@@ -421,7 +421,7 @@ function NLPModels.hess_structure!(
 end
 
 function NLPModels.hess_structure!(
-  qp::QuadraticModel{T, S, M1},
+  qp::AbstractQuadraticModel{T, S, M1},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1 <: SparseMatrixCSC}
@@ -432,7 +432,7 @@ function NLPModels.hess_structure!(
 end
 
 function NLPModels.hess_structure!(
-  qp::QuadraticModel{T, S, M1},
+  qp::AbstractQuadraticModel{T, S, M1},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1 <: Matrix}
@@ -458,7 +458,7 @@ function fill_coord!(S::SparseMatrixCSC, vals, obj_weight)
 end
 
 function NLPModels.hess_coord!(
-  qp::QuadraticModel{T, S, M1},
+  qp::AbstractQuadraticModel{T, S, M1},
   x::AbstractVector{T},
   vals::AbstractVector{T};
   obj_weight::Real = one(eltype(x)),
@@ -471,7 +471,7 @@ function NLPModels.hess_coord!(
 end
 
 function NLPModels.hess_coord!(
-  qp::QuadraticModel{T, S, M1},
+  qp::AbstractQuadraticModel{T, S, M1},
   x::AbstractVector{T},
   vals::AbstractVector{T};
   obj_weight::Real = one(eltype(x)),
@@ -484,7 +484,7 @@ function NLPModels.hess_coord!(
 end
 
 function NLPModels.hess_coord!(
-  qp::QuadraticModel{T, S, M1},
+  qp::AbstractQuadraticModel{T, S, M1},
   x::AbstractVector{T},
   vals::AbstractVector{T};
   obj_weight::Real = one(eltype(x)),
@@ -511,7 +511,7 @@ NLPModels.hess_coord!(
 ) = hess_coord!(qp, x, vals, obj_weight = obj_weight)
 
 function NLPModels.jac_lin_structure!(
-  qp::QuadraticModel{T, S, M1, M2},
+  qp::AbstractQuadraticModell{T, S, M1, M2},
   rows::AbstractVector{<:Integer},
   cols::AbstractVector{<:Integer},
 ) where {T, S, M1, M2 <: SparseMatrixCOO}
@@ -608,7 +608,7 @@ function NLPModels.cons_lin!(qp::AbstractQuadraticModel, x::AbstractVector, c::A
 end
 
 function NLPModels.hprod!(
-  qp::QuadraticModel,
+  qp::AbstractQuadraticModel,
   x::AbstractVector,
   v::AbstractVector,
   Hv::AbstractVector;
