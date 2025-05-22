@@ -208,7 +208,6 @@ function presolve(
   lvar, uvar = psqm.meta.lvar, psqm.meta.uvar
   lcon, ucon = psqm.meta.lcon, psqm.meta.ucon
   nvar, ncon = psqm.meta.nvar, psqm.meta.ncon
-  resize!(psdata.v, nvar)
 
   # copy if same vector
   lcon === ucon && (lcon = copy(lcon))
@@ -380,6 +379,7 @@ function presolve(
       kwargs...,
     )
     ps = PresolvedQuadraticModel(psmeta, Counters(), psdata, psd)
+    resize!(ps.data.v, nvarps)
     return GenericExecutionStats(
       ps,
       status = :unknown,
