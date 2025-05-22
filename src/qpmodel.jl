@@ -252,7 +252,7 @@ function NLPModels.objgrad!(qp::AbstractQuadraticModel, x::AbstractVector, g::Ab
   NLPModels.increment!(qp, :neval_grad)
   mul!(g, Symmetric(qp.data.H, :L), x)
   f = qp.data.c0 + dot(qp.data.c, x) + dot(g, x) / 2
-  @. g .+= qp.data.c
+  g .+= qp.data.c
   return f, g
 end
 
