@@ -21,5 +21,11 @@ NLPModelsModifiers = "0.7"
 NLPModelsTest = "0.10"
 QPSReader = "0.2"
 SolverCore = "0.3"
-SparseConnectivityTracer = "0.6"
+SparseConnectivityTracer = "1.0"
 SparseMatricesCOO = "0.2"
+
+[sources]
+ADNLPModels = { path = "../../ADNLPModels.jl" }
+NLPModelsTest = { path = "../../NLPModelsTest.jl" }
+NLPModels = { path = "../../NLPModels.jl" }
+NLPModelsModifiers = { path = "../../NLPModelsModifiers.jl" }
