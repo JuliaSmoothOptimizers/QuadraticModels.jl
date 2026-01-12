@@ -152,14 +152,14 @@ for fname in (
   :jac_lin_coord!,
   :jac_lin,
   :cons_lin!,
-  jprod_lin!,
-  jtprod!,
-  jtprod_lin!
+  :jprod_lin!,
+  :jtprod!,
+  :jtprod_lin!
 )
   @eval begin
     NLPModels.$fname(
       qp::RegularizedQuadraticModel,
       args...
-    ) = NLPModels.$fname(qp.model, args...)
+    ) = $fname(qp.model, args...)
   end
 end
