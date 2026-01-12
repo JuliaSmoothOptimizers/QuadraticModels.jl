@@ -1,3 +1,5 @@
+export RegularizedQuadraticModel
+
 mutable struct RegularizedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
   model::QuadraticModel{T, S, M1, M2}
   σ::T

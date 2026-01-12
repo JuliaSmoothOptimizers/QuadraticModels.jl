@@ -31,6 +31,7 @@ export AbstractQuadraticModel, QuadraticModel, presolve, postsolve, postsolve!, 
 
 include("linalg_utils.jl")
 include("qpmodel.jl")
+include("regularized_qpmodel.jl")
 include("presolve/presolve.jl")
 
 end # module
