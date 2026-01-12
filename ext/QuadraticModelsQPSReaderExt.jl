@@ -21,4 +21,9 @@ function QuadraticModels.QuadraticModel(qps::QPSReader.QPSData, x0 = zeros(qps.n
   )
 end
 
+function QuadraticModels.RegularizedQuadraticModel(qps::QPSReader.QPSData, x0 = zeros(qps.nvar); σ = 0.0)
+  model = QuadraticModels.QuadraticModel(qps, x0)
+  QuadraticModels.RegularizedQuadraticModel(model, σ)
+end
+
 end
