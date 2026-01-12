@@ -143,7 +143,7 @@ function NLPModels.hprod!(
   obj_weight::Real = one(eltype(x)),
 )
   hprod!(qp.model, x, v, Hv, obj_weight = obj_weight)
-  @. Hv += qp.σ.obj_weight*v
+  @. Hv += qp.σ*obj_weight*v
   return Hv
 end
 
