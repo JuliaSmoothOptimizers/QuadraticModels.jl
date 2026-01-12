@@ -135,6 +135,18 @@ function NLPModels.hess_coord!(
   return vals
 end
 
+function NLPModels.hprod!(
+  qp::RegularizedQuadraticModel,
+  x::AbstractVector,
+  v::AbstractVector,
+  Hv::AbstractVector;
+  obj_weight::Real = one(eltype(x)),
+)
+  hprod!(qp.model, x, v, Hv, obj_weight = obj_weight)
+  @. Hv += qp.σ.obj_weight*v
+  return Hv
+end
+
 for fname in (
   :jac_lin_structure!,
   :jac_lin_coord!,
