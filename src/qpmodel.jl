@@ -290,10 +290,14 @@ function fill_structure!(S::SparseMatrixCSC, rows, cols)
   end
 end
 
-function fill_coord!(S::SparseMatrixCSC, vals, obj_weight)
+function fill_coord!(S::SparseMatrixCSC, vals, obj_weight; σ = zero(eltype(vals)))
   count = 1
+  σw = obj_weight * σ
   @inbounds for col = 1:size(S, 2), k = S.colptr[col]:(S.colptr[col + 1] - 1)
     vals[count] = obj_weight * S.nzval[k]
+    if S.rowval[k] == col
+      vals[count] += σw
+    end
     count += 1
   end
 end

@@ -4,7 +4,6 @@ mutable struct RegularizedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel
   model::QuadraticModel{T, S, M1, M2}
   meta::NLPModelMeta{T, S}
   σ::T
-  _diag_idx::Vector{Int}
 end
 
 function Base.getproperty(obj::RegularizedQuadraticModel, sym::Symbol)
@@ -33,7 +32,7 @@ function RegularizedQuadraticModel(
     end
   end
   meta = NLPModelMeta(model.meta, nnzh = model.meta.nnzh + nz_diag)
-  return RegularizedQuadraticModel(model, meta, σ, zeros(Int, meta.nvar - nz_diag))
+  return RegularizedQuadraticModel(model, meta, σ)
 end
 
 function RegularizedQuadraticModel(
@@ -107,16 +106,6 @@ function NLPModels.hess_structure!(
     end
   end
 
-  if qp._diag_idx[1] == 0 # This field has not been initialized yet
-    k = 0
-    @inbounds for i = 1:nnz_H
-      if rows[i] == cols[i]
-        k += 1
-        qp._diag_idx[k] = i
-      end
-    end
-  end
-
   return rows, cols
 end
 
@@ -125,12 +114,46 @@ function NLPModels.hess_coord!(
   x::AbstractVector{T},
   vals::AbstractVector{T};
   obj_weight::Real = one(eltype(x)),
-) where{T, S, M1 <: AbstractMatrix{T}}
-  nnz_H = qp.model.meta.nnzh
-  @views hess_coord!(qp.model, x, vals[1:nnz_H]; obj_weight = obj_weight)
-  σ = obj_weight*qp.σ
-  vals[nnz_H + 1:end] .= σ
-  vals[qp._diag_idx] .+= σ
+) where{T, S, M1 <: Matrix{T}}
+  NLPModels.increment!(qp.model, :neval_hess)
+  count = 1
+  for j = 1:(qp.meta.nvar)
+    for i = j:(qp.meta.nvar)
+      vals[count] = obj_weight * qp.data.H[i, j]
+      if i == j 
+        vals[count] += obj_weight * qp.σ
+      end
+      count += 1
+    end
+  end
+  return vals
+end
+
+function NLPModels.hess_coord!(
+  qp::RegularizedQuadraticModel{T, S, M1},
+  x::AbstractVector{T},
+  vals::AbstractVector{T};
+  obj_weight::Real = one(eltype(x)),
+) where{T, S, M1 <: SparseMatrixCSC{T}}
+  NLPModels.increment!(qp.model, :neval_hess)
+  fill_coord!(qp.data.H, vals, obj_weight; σ = qp.σ)
+  return vals
+end
+
+function NLPModels.hess_coord!(
+  qp::RegularizedQuadraticModel{T, S, M1},
+  x::AbstractVector{T},
+  vals::AbstractVector{T};
+  obj_weight::Real = one(eltype(x)),
+) where{T, S, M1 <: SparseMatrixCOO{T}}
+  NLPModels.increment!(qp.model, :neval_hess)
+  @inbounds for i = 1:qp.model.meta.nnzh
+    vals[i] = obj_weight * qp.data.H.vals[i]
+    if qp.data.H.rows[i] == qp.data.H.cols[i]
+      vals[i] += obj_weight * qp.σ
+    end
+  end
+  vals[qp.model.meta.nnzh+1:end] .= obj_weight * qp.σ
 
   return vals
 end
