@@ -367,7 +367,7 @@ function NLPModels.hess_coord!(
 end
 
 NLPModels.hess_coord!(
-  qp::QuadraticModel,
+  qp::AbstractQuadraticModel,
   x::AbstractVector,
   y::AbstractVector,
   vals::AbstractVector;

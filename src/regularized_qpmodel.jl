@@ -1,9 +1,10 @@
 export RegularizedQuadraticModel
 
-mutable struct RegularizedQuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
+mutable struct RegularizedQuadraticModel{T, S, M1, M2, I} <: AbstractQuadraticModel{T, S}
   model::QuadraticModel{T, S, M1, M2}
   meta::NLPModelMeta{T, S}
   σ::T
+  selected::I # Number of slack variables, see SlackModel
 end
 
 function Base.getproperty(obj::RegularizedQuadraticModel, sym::Symbol)
@@ -18,21 +19,22 @@ end
 
 function RegularizedQuadraticModel(
   model::QuadraticModel{T, S},
-  σ::T
+  σ::T;
+  selected = 1:model.meta.nvar
 ) where{T, S}
 
   isa(model.data.H, AbstractLinearOperator) && 
-    return RegularizedQuadraticModel(model, model.meta, σ, Int[])
+    return RegularizedQuadraticModel(model, model.meta, σ, selected)
 
   # Update nnzh: reg_qp.meta.nnzh ≠ reg_qp.model.meta.nnzh
   nz_diag = 0
-  @inbounds for i = 1:model.meta.nvar
+  @inbounds for i in selected
     if model.data.H[i, i] == zero(T)
       nz_diag += 1
     end
   end
   meta = NLPModelMeta(model.meta, nnzh = model.meta.nnzh + nz_diag)
-  return RegularizedQuadraticModel(model, meta, σ)
+  return RegularizedQuadraticModel(model, meta, σ, selected)
 end
 
 function RegularizedQuadraticModel(
@@ -71,21 +73,22 @@ end
 function NLPModels.objgrad!(qp::RegularizedQuadraticModel, x::AbstractVector, g::AbstractVector)
   f, g = objgrad!(qp.model, x, g)
   iszero(qp.σ) && return f, g
-  f += qp.σ*dot(x, x)/2
-  @. g += qp.σ * x 
+  @views f += qp.σ*dot(x[qp.selected], x[qp.selected])/2
+  @. @views g[qp.selected] += qp.σ * x[qp.selected]
   return f, g
 end
 
 function NLPModels.obj(qp::RegularizedQuadraticModel, x::AbstractVector)
   f = obj(qp.model, x)
   iszero(qp.σ) && return f
-  return f + qp.σ*dot(x, x)/2
+  @views f += qp.σ*dot(x[qp.selected], x[qp.selected])/2
+  return f
 end
 
 function NLPModels.grad!(qp::RegularizedQuadraticModel, x::AbstractVector, g::AbstractVector)
   grad!(qp.model, x, g)
   iszero(qp.σ) && return g
-  @. g += qp.σ * x
+  @. @views g[qp.selected] += qp.σ * x[qp.selected]
   return g
 end
 
@@ -98,7 +101,7 @@ function NLPModels.hess_structure!(
   @views hess_structure!(qp.model, rows[1:nnz_H], cols[1:nnz_H])
 
   k = nnz_H
-  @inbounds for i = 1:qp.meta.nvar
+  @inbounds for i in qp.selected
     if qp.data.H[i,i] == zero(T) # Else, this entry has already been added by the previous hess_structure! call
       k += 1
       rows[k] = i
@@ -166,15 +169,11 @@ function NLPModels.hprod!(
   obj_weight::Real = one(eltype(x)),
 )
   hprod!(qp.model, x, v, Hv, obj_weight = obj_weight)
-  @. Hv += qp.σ*obj_weight*v
+  @. @views Hv[qp.selected] += qp.σ*obj_weight*v[qp.selected]
   return Hv
 end
 
 for fname in (
-  :jac_lin_structure!,
-  :jac_lin_coord!,
-  :jac_lin,
-  :cons_lin!,
   :jprod_lin!,
   :jtprod!,
   :jtprod_lin!
@@ -182,7 +181,42 @@ for fname in (
   @eval begin
     NLPModels.$fname(
       qp::RegularizedQuadraticModel,
-      args...
-    ) = $fname(qp.model, args...)
+      x::AbstractVector,
+      v::AbstractVector,
+      Atv::AbstractVector
+    ) = $fname(qp.model, x, v, Atv)
   end
+end
+
+for fname in (
+  :jac_lin_structure!,
+  :jac_lin_coord!,
+  :cons_lin!,
+)
+  @eval begin
+    NLPModels.$fname(
+      qp::RegularizedQuadraticModel,
+      x::AbstractVector,
+      v::AbstractVector,
+    ) = $fname(qp.model, x, v)
+  end
+end
+
+NLPModels.jac_lin(
+  qp::RegularizedQuadraticModel,
+  x::AbstractVector
+) = jac_lin(qp.model, x)
+
+function NLPModelsModifiers.SlackModel(
+  qp::RegularizedQuadraticModel{T, S},
+  name = qp.meta.name * "-slack",
+) where {T, S}
+  model = SlackModel(qp.model)
+  ns = qp.meta.ncon - length(qp.meta.jfix)
+  return RegularizedQuadraticModel(model, qp.σ, selected = 1:qp.meta.nvar)
+end
+
+function SlackModel!(qp::RegularizedQuadraticModel{T, S, M1, M2}) where {T, S, M1, M2 <: SparseMatrixCOO}
+  ns = qp.meta.ncon - length(qp.meta.jfix)
+  SlackModel!(qp.model)
 end
