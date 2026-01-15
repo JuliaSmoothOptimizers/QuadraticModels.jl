@@ -178,6 +178,8 @@ end
     c0 = 0.0,
     name = "QM",
   )
+  qp_reg = RegularizedQuadraticModel(qp, 3.0)
+
   qpLO = QuadraticModel(
     c,
     LinearOperator(H),
@@ -189,18 +191,27 @@ end
     c0 = 0.0,
     name = "QMLO",
   )
+  qpLO_reg = RegularizedQuadraticModel(qpLO, 3.0)
+
   x = ones(10)
   @test obj(qp, x) ≈ obj(qpLO, x)
   @test grad(qp, x) ≈ grad(qpLO, x)
   @test cons(qp, x) ≈ cons(qpLO, x)
 
+  @test obj(qp_reg, x) ≈ obj(qpLO_reg, x)
+  @test grad(qp_reg, x) ≈ grad(qpLO_reg, x)
+  @test cons(qp_reg, x) ≈ cons(qpLO_reg, x)
+
   SM = SlackModel(qp)
+  SM_reg = SlackModel(qp_reg)
   SMLO = SlackModel(qpLO)
+  SMLO_reg = SlackModel(qpLO_reg)
   nfix = length(qp.meta.jfix)
   ns = qp.meta.ncon - nfix
   x = rand(SM.meta.nvar)
   y = rand(SM.meta.ncon)
   @test SM.meta.nvar == qp.meta.nvar + ns
+  @test SM_reg.meta.nvar == qp_reg.meta.nvar + ns
   @test obj(SM, x) ≈ obj(SMLO, x)
   @test grad(SM, x) ≈ grad(SMLO, x)
   @test cons(SM, x) ≈ cons(SMLO, x)
@@ -208,6 +219,14 @@ end
   @test jtprod(SMLO, x, y) ≈ jtprod(SM, x, y)
   @test objgrad(SMLO, x)[1] ≈ objgrad(SM, x)[1]
   @test objgrad(SMLO, x)[2] ≈ objgrad(SM, x)[2]
+
+  @test obj(SM_reg, x) ≈ obj(SMLO_reg, x)
+  @test grad(SM_reg, x) ≈ grad(SMLO_reg, x)
+  @test cons(SM_reg, x) ≈ cons(SMLO_reg, x)
+  @test hprod(SMLO_reg, x, x) ≈ hprod(SMLO_reg, x, x)
+  @test jtprod(SMLO_reg, x, y) ≈ jtprod(SM_reg, x, y)
+  @test objgrad(SMLO_reg, x)[1] ≈ objgrad(SM_reg, x)[1]
+  @test objgrad(SMLO_reg, x)[2] ≈ objgrad(SM_reg, x)[2]
 
   # tests default A value
   qp = QuadraticModel(c, SparseMatrixCOO(H.data), lvar = lvar, uvar = uvar, c0 = 0.0, name = "QM")
