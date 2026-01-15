@@ -1,5 +1,24 @@
 export RegularizedQuadraticModel
 
+"""
+    reg_qp = RegularizedQuadraticModel(model, σ; selected = 1:model.meta.nvar)
+
+    reg_qp = RegularizedQuadraticModel(c, Hrows, Hcols, Hvals; σ = σ, selected = 1:n, Arows = Arows, Acols = Acols, Avals = Avals, 
+                        lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar, sortcols = false)
+
+    reg_qp = RegularizedQuadraticModel(c, H; σ = σ, selected = 1:n, A = A, lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar)
+
+Create a regularized quadratic model ``min ~\\tfrac{1}{2} x^T H x + tfrac{1}{2}σ‖x_{1:n}‖² + c^T x + c_0`` with optional bounds
+`lvar ≦ x ≦ uvar` and optional linear constraints `lcon ≦ Ax ≦ ucon`.
+
+The instance of `RegularizedQuadraticModel` created contains the fields: 
+-  `model` of type `QuadraticModel`, which represents the unregularized quadratic model.
+-  `meta` of type [`NLPModels.NLPModelMeta`](https://juliasmoothoptimizers.github.io/NLPModels.jl/stable/models/#NLPModels.NLPModelMeta) 
+   from [`NLPModels.jl`](https://github.com/JuliaSmoothOptimizers/NLPModels.jl),
+-  `σ` the regularization parameter,
+-  `selected` the set of variable indices to which the quadratic regularization is applied.
+The `counters` and `data` fields of the instance are shared with those of its `model`, that is, `qp.data == qp.model.data` and `qp.counters = qp.model.counters`.
+"""
 mutable struct RegularizedQuadraticModel{T, S, M1, M2, I} <: AbstractQuadraticModel{T, S}
   model::QuadraticModel{T, S, M1, M2}
   meta::NLPModelMeta{T, S}
@@ -63,10 +82,11 @@ function RegularizedQuadraticModel(
   c::S,
   H::Union{AbstractMatrix{T}, AbstractLinearOperator{T}};
   σ::T = zero(T),
+  selected = 1:length(c),
   kwargs...,
 ) where {T, S}
   model = QuadraticModel(c, H; kwargs...)
-  return RegularizedQuadraticModel(model, σ)
+  return RegularizedQuadraticModel(model, σ, selected = selected)
 end
 
 function RegularizedQuadraticModel(
@@ -75,20 +95,22 @@ function RegularizedQuadraticModel(
   Hcols::AbstractVector{<:Integer},
   Hvals::S;
   σ::T = zero(T),
+  selected = 1:length(c),
   kwargs...,
 ) where {T, S}
   model = QuadraticModel(c, Hrows, Hcols, Hvals; kwargs...)
-  return RegularizedQuadraticModel(model, σ)
+  return RegularizedQuadraticModel(model, σ, selected = selected)
 end
 
 function RegularizedQuadraticModel(
   model::AbstractNLPModel{T, S}, 
   x::AbstractVector; 
   σ::T = zero(T),
+  selected = 1:length(x),
   kwargs...
 ) where {T, S}
   model = QuadraticModel(model, x; kwargs...)
-  return RegularizedQuadraticModel(model, σ)
+  return RegularizedQuadraticModel(model, σ, selected = selected)
 end
 
 # NLPModels API
