@@ -38,6 +38,28 @@ function RegularizedQuadraticModel(
 end
 
 function RegularizedQuadraticModel(
+  model::QuadraticModel{T, S, M1},
+  σ::T;
+  selected = 1:model.meta.nvar
+) where{T, S, M1 <: SparseMatrixCOO{T}}
+  # Update nnzh: reg_qp.meta.nnzh ≠ reg_qp.model.meta.nnzh
+  n_diag = 0
+
+  # What if i is in H.rows, H.cols even though H[i, i] is zero ? 
+  # For SparseMatricesCOO, we only need to check whether diagonal elements are structurally present.
+  @inbounds for k in eachindex(model.data.H.rows)
+    if model.data.H.rows[k] == model.data.H.cols[k]
+      if model.data.H.rows[k] in selected
+        n_diag += 1
+      end
+    end
+  end
+  nz_diag = length(selected) - n_diag
+  meta = NLPModelMeta(model.meta, nnzh = model.meta.nnzh + nz_diag)
+  return RegularizedQuadraticModel(model, meta, σ, selected)
+end
+
+function RegularizedQuadraticModel(
   c::S,
   H::Union{AbstractMatrix{T}, AbstractLinearOperator{T}};
   σ::T = zero(T),
@@ -102,10 +124,13 @@ function NLPModels.hess_structure!(
 
   k = nnz_H
   @inbounds for i in qp.selected
-    if qp.data.H[i,i] == zero(T) # Else, this entry has already been added by the previous hess_structure! call
-      k += 1
-      rows[k] = i
-      cols[k] = i
+    if qp.data.H[i,i] == zero(T)
+      if !any(j -> qp.data.H.rows[j] == i && qp.data.H.cols[j] == i,
+          eachindex(qp.data.H.rows)) # Need to check if i is not already structurally present in H
+          k += 1
+          rows[k] = i
+          cols[k] = i
+      end
     end
   end
 
