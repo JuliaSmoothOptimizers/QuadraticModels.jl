@@ -1,7 +1,7 @@
 
-function ineqconqp_autodiff()
+function ineqconqp_autodiff(; σ = 0.0)
   x0 = ones(2)
-  f(x) = (x[1] - 1)^2 / 2 + (x[2] - 1)^2 / 2
+  f(x) = (x[1] - 1)^2 / 2 + (x[2] - 1)^2 / 2 + 0.5 * σ *(x[1]^2 + x[2]^2)
   lcon = [0.0; -Inf; -1.0]
   ucon = [Inf; 0.0; 1.0]
 
@@ -12,7 +12,7 @@ function ineqconqp_autodiff()
   return ADNLPModel(f, x0, Arows, Acols, Avals, lcon, ucon, name = "ineqconqp_autodiff")
 end
 
-function ineqconqp_QP()
+function ineqconqp_QP(; σ = 0.0)
   c = -ones(2)
   Hrows = [1, 2]
   Hcols = [1, 2]
@@ -24,12 +24,27 @@ function ineqconqp_QP()
   lcon = [0.0; -Inf; -1.0]
   ucon = [Inf; 0.0; 1.0]
   x0 = ones(2)
-
-  return QuadraticModel(
+  σ == 0.0 &&
+    return QuadraticModel(
+      c,
+      Hrows,
+      Hcols,
+      Hvals,
+      Arows = Arows,
+      Acols = Acols,
+      Avals = Avals,
+      lcon = lcon,
+      ucon = ucon,
+      c0 = c0,
+      x0 = x0,
+      name = "ineqconqp_QP",
+    )
+  return RegularizedQuadraticModel(
     c,
     Hrows,
     Hcols,
     Hvals,
+    σ = σ,
     Arows = Arows,
     Acols = Acols,
     Avals = Avals,
@@ -41,7 +56,7 @@ function ineqconqp_QP()
   )
 end
 
-function ineqconqp_QPSData()
+function ineqconqp_QPSData(; σ = 0.0)
   c = -ones(2)
   Hrows = [1, 2]
   Hcols = [1, 2]
@@ -63,5 +78,7 @@ function ineqconqp_QPSData()
   qps.lcon, qps.ucon = lcon, ucon
   qps.lvar, qps.uvar = lvar, uvar
   qps.nvar = length(x0)
-  return QuadraticModel(qps, x0)
+  σ == 0.0 &&
+    return QuadraticModel(qps, x0)
+  return RegularizedQuadraticModel(qps, x0, σ = σ)
 end
