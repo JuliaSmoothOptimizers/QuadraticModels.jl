@@ -146,7 +146,7 @@ function NLPModels.hess_structure!(
 
   k = nnz_H
   @inbounds for i in qp.selected
-    if qp.data.H[i,i] == zero(T)
+    if qp.model.data.H[i,i] == zero(T)
       if !any(j -> qp.data.H.rows[j] == i && qp.data.H.cols[j] == i,
           eachindex(qp.data.H.rows)) # Need to check if i is not already structurally present in H
           k += 1
@@ -169,7 +169,7 @@ function NLPModels.hess_coord!(
   count = 1
   for j = 1:(qp.meta.nvar)
     for i = j:(qp.meta.nvar)
-      vals[count] = obj_weight * qp.data.H[i, j]
+      vals[count] = obj_weight * qp.model.data.H[i, j]
       if i == j 
         vals[count] += obj_weight * qp.σ
       end
@@ -186,7 +186,7 @@ function NLPModels.hess_coord!(
   obj_weight::Real = one(eltype(x)),
 ) where{T, S, M1 <: SparseMatrixCSC{T}}
   NLPModels.increment!(qp.model, :neval_hess)
-  fill_coord!(qp.data.H, vals, obj_weight; σ = qp.σ)
+  fill_coord!(qp.model.data.H, vals, obj_weight; σ = qp.σ)
   return vals
 end
 
@@ -198,8 +198,8 @@ function NLPModels.hess_coord!(
 ) where{T, S, M1 <: SparseMatrixCOO{T}}
   NLPModels.increment!(qp.model, :neval_hess)
   @inbounds for i = 1:qp.model.meta.nnzh
-    vals[i] = obj_weight * qp.data.H.vals[i]
-    if qp.data.H.rows[i] == qp.data.H.cols[i]
+    vals[i] = obj_weight * qp.model.data.H.vals[i]
+    if qp.model.data.H.rows[i] == qp.model.data.H.cols[i]
       vals[i] += obj_weight * qp.σ
     end
   end
