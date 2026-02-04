@@ -5,7 +5,6 @@ mutable struct QPData{
   S,
   M1 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   M2 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
-  I <: AbstractVector{<:Integer},
 }
   c0::T         # constant term in objective
   c::S          # linear term
@@ -13,7 +12,7 @@ mutable struct QPData{
   H::M1
   A::M2
   regularize::Bool # Whether the objective function is regularized or not
-  selected::I # Variable indices to which the regularization is applied to
+  selected::UnitRange{Int64} # Variable indices to which the regularization is applied to
   σ::T # Regularization parameter if regularize is true
 end
 
