@@ -149,7 +149,7 @@ function QuadraticModel(
       nln_nnzj = 0,
       nnzh = regularize ? nnzh + length(selected) : nnzh,
       lin = 1:ncon,
-      islp = (nnzh == 0);
+      islp = (nnzh == 0 && !regularize);
       kwargs...,
     ),
     Counters(),
@@ -215,7 +215,7 @@ function QuadraticModel(
       nln_nnzj = 0,
       nnzh = nnzh,
       lin = 1:ncon,
-      islp = (nnzh == 0);
+      islp = (nnzh == 0 && !regularize);
       kwargs...,
     ),
     Counters(),
