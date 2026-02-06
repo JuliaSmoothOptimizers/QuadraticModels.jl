@@ -37,16 +37,20 @@ abstract type AbstractQuadraticModel{T, S} <: AbstractNLPModel{T, S} end
 
 """
     qp = QuadraticModel(c, Hrows, Hcols, Hvals; Arows = Arows, Acols = Acols, Avals = Avals, 
-                        lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar, sortcols = false)
+                        lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar, sortcols = false,
+                        regularize = regularize, selected = selected, σ = σ)
 
-    qp = QuadraticModel(c, H; A = A, lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar)
+    qp = QuadraticModel(c, H; A = A, lcon = lcon, ucon = ucon, lvar = lvar, uvar = uvar,
+                        regularize = regularize, selected = selected, σ = σ)
 
-Create a Quadratic model ``min ~\\tfrac{1}{2} x^T H x + c^T x + c_0`` with optional bounds
+Create a Quadratic model ``min ~\\tfrac{1}{2} x^T (H + σI) x + c^T x + c_0`` with optional bounds
 `lvar ≦ x ≦ uvar` and optional linear constraints `lcon ≦ Ax ≦ ucon`.
 The user should only give the lower triangle of `H` to the `QuadraticModel` constructor.
 
 With the first constructor, if `sortcols = true`, then `Hcols` and `Acols` are sorted in ascending order 
 (`Hrows`, `Hvals` and `Arows`, `Avals` are then sorted accordingly).
+
+If `regularize = true` or `σ != 0`, then a quadratic regularization term `\\tfrac{σ}{2} \\sum_{i ∈ selected} x_i^2` is added to the objective function.
 
 You can also use [`QPSReader.jl`](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) to
 create a Quadratic model from a QPS file:
@@ -99,7 +103,7 @@ function QuadraticModel(
   c0::T = zero(eltype(c)),
   sortcols::Bool = false,
   regularize::Bool = false,
-  selected::AbstractVector{<:Integer} = 1:length(c),
+  selected::UnitRange{Int64} = 1:length(c),
   σ::T = zero(eltype(c)),
   kwargs...,
 ) where {T, S}
@@ -131,6 +135,7 @@ function QuadraticModel(
     permute!(Acols, pA)
     permute!(Avals, pA)
   end
+  regularize = regularize || σ != zero(T)
   QuadraticModel(
     NLPModelMeta{T, S}(
       length(c),
@@ -175,24 +180,27 @@ function QuadraticModel(
   uvar::S = fill!(S(undef, length(c)), T(Inf)),
   c0::T = zero(T),
   regularize::Bool = false,
-  selected::AbstractVector{<:Integer} = 1:length(c),
+  selected::UnitRange{Int64} = 1:length(c),
   σ::T = zero(T),
   kwargs...,
 ) where {T, S}
   @assert all(lvar .≤ uvar)
   @assert all(lcon .≤ ucon)
   ncon, nvar = size(A)
+  regularize = regularize || σ != zero(T)
   if typeof(H) <: AbstractLinearOperator # convert A to a LinOp if A is a Matrix?
     nnzh = 0
     nnzj = 0
     data = QPData(c0, c, H, A, regularize = regularize, selected = selected, σ = σ)
-  else
-    nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H)
+  elseif typeof(H) <: Symmetric
+    nnzh = typeof(H.data) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H) + (regularize ? length(selected) : 0)
     nnzj = nnz(A)
-    data =
-      typeof(H) <: Symmetric ?
-      QPData(c0, c, H.data, A, regularize = regularize, selected = selected, σ = σ) :
-      QPData(c0, c, H, A, regularize = regularize, selected = selected, σ = σ)
+    data = QPData(c0, c, H.data, A, regularize = regularize, selected = selected, σ = σ)
+    QPData(c0, c, H.data, A, regularize = regularize, selected = selected, σ = σ)
+  else
+    nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H) + (regularize ? length(selected) : 0)
+    nnzj = nnz(A)
+    data = QPData(c0, c, H, A, regularize = regularize, selected = selected, σ = σ)
   end
 
   QuadraticModel(
@@ -245,7 +253,7 @@ function QuadraticModel(model::AbstractNLPModel{T, S}, x::AbstractVector; kwargs
       ucon = model.meta.ucon .- c,
       lvar = model.meta.lvar .- x,
       uvar = model.meta.uvar .- x,
-      x0 = fill!(S(undef, model.meta.nvar), zero(T)),
+      x0 = fill!(S(undef, model.meta.nvar), zero(T));
       kwargs...,
     )
   else
@@ -257,7 +265,7 @@ function QuadraticModel(model::AbstractNLPModel{T, S}, x::AbstractVector; kwargs
       c0 = c0,
       lvar = model.meta.lvar .- x,
       uvar = model.meta.uvar .- x,
-      x0 = fill!(S(undef, model.meta.nvar), zero(T)),
+      x0 = fill!(S(undef, model.meta.nvar), zero(T));
       kwargs...,
     )
   end
@@ -660,6 +668,12 @@ function NLPModelsModifiers.SlackModel(
     data = slackdata(dataCOO, qp.meta, ns)
   else
     data = slackdata(qp.data, qp.meta, ns)
+  end
+
+  if qp.data.regularize
+    data.regularize = true
+    data.selected = qp.data.selected
+    data.σ = qp.data.σ
   end
 
   meta = NLPModelsModifiers.slack_meta(qp.meta, name = qp.meta.name)

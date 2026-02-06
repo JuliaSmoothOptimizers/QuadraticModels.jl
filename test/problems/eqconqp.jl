@@ -1,8 +1,8 @@
 
-function eqconqp_autodiff()
+function eqconqp_autodiff(; σ = 0.0)
   n = 50
   x0 = zeros(n)
-  f(x) = sum(i * x[i]^2 for i = 1:n) / 2 + x[1] * x[n]
+  f(x) = sum(i * x[i]^2 + σ * x[i]^2 for i = 1:n) / 2 + x[1] * x[n]
   lcon = [1.0]
   ucon = [1.0]
   A = ones(1, n)
@@ -10,7 +10,7 @@ function eqconqp_autodiff()
   return ADNLPModel(f, x0, sparse(A), lcon, ucon, name = "eqconqp_autodiff")
 end
 
-function eqconqp_QP_dense()
+function eqconqp_QP_dense(; σ = 0.0)
   n = 50
   c = zeros(n)
   H = diagm(0 => 1.0:n)
@@ -19,10 +19,12 @@ function eqconqp_QP_dense()
   lcon = [1.0]
   ucon = [1.0]
 
-  return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
+  σ == 0.0 &&
+    return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
+  return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP", regularize = true, σ = σ)
 end
 
-function eqconqp_QP_sparse()
+function eqconqp_QP_sparse(; σ = 0.0)
   n = 50
   c = zeros(n)
   H = spdiagm(0 => 1.0:n)
@@ -31,10 +33,12 @@ function eqconqp_QP_sparse()
   lcon = [1.0]
   ucon = [1.0]
 
-  return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
+  σ == 0.0 && 
+    return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
+  return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP", regularize = true, σ = σ)
 end
 
-function eqconqp_QP_symmetric()
+function eqconqp_QP_symmetric(; σ = 0.0)
   n = 50
   c = zeros(n)
   H = spdiagm(0 => 1.0:n)
@@ -44,10 +48,12 @@ function eqconqp_QP_symmetric()
   lcon = [1.0]
   ucon = [1.0]
 
-  return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
+  σ == 0.0 &&
+    return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
+  return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP", regularize = true, σ = σ)
 end
 
-function eqconqp_QPSData()
+function eqconqp_QPSData(; σ = 0.0)
   n = 50
   c = zeros(n)
   H = spdiagm(0 => 1.0:n)
@@ -64,5 +70,8 @@ function eqconqp_QPSData()
   qps.lcon, qps.ucon = lcon, ucon
   qps.lvar, qps.uvar = lvar, uvar
   qps.nvar = length(c)
-  return QuadraticModel(qps)
+
+  σ == 0.0 &&
+    return QuadraticModel(qps)
+  return QuadraticModel(qps, regularize = true, σ = σ)
 end

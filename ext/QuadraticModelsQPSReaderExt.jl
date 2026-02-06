@@ -3,7 +3,7 @@ module QuadraticModelsQPSReaderExt
 import QuadraticModels
 import QPSReader
 
-function QuadraticModels.QuadraticModel(qps::QPSReader.QPSData, x0 = zeros(qps.nvar))
+function QuadraticModels.QuadraticModel(qps::QPSReader.QPSData, x0 = zeros(qps.nvar); regularize = false, selected = 1:qps.nvar, σ = zero(eltype(x0)))
   QuadraticModels.QuadraticModel(
     qps.c,
     qps.qrows,
@@ -18,6 +18,9 @@ function QuadraticModels.QuadraticModel(qps::QPSReader.QPSData, x0 = zeros(qps.n
     uvar = qps.uvar,
     c0 = qps.c0,
     x0 = x0,
+    regularize = regularize,
+    selected = selected,
+    σ = σ,
   )
 end
 
