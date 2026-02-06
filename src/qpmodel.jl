@@ -196,7 +196,6 @@ function QuadraticModel(
     nnzh = typeof(H.data) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H) + (regularize ? length(selected) : 0)
     nnzj = nnz(A)
     data = QPData(c0, c, H.data, A, regularize = regularize, selected = selected, σ = σ)
-    QPData(c0, c, H.data, A, regularize = regularize, selected = selected, σ = σ)
   else
     nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H) + (regularize ? length(selected) : 0)
     nnzj = nnz(A)
