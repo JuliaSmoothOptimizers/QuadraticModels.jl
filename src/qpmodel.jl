@@ -12,7 +12,7 @@ mutable struct QPData{
   H::M1
   A::M2
   regularize::Bool # Whether the objective function is regularized or not
-  selected::UnitRange{Int64} # Variable indices to which the regularization is applied to
+  selected::UnitRange{Int} # Variable indices to which the regularization is applied to
   σ::T # Regularization parameter if regularize is true
 end
 
@@ -103,7 +103,7 @@ function QuadraticModel(
   c0::T = zero(eltype(c)),
   sortcols::Bool = false,
   regularize::Bool = false,
-  selected::UnitRange{Int64} = 1:length(c),
+  selected::UnitRange{Int} = 1:length(c),
   σ::T = zero(eltype(c)),
   kwargs...,
 ) where {T, S}
@@ -180,7 +180,7 @@ function QuadraticModel(
   uvar::S = fill!(S(undef, length(c)), T(Inf)),
   c0::T = zero(T),
   regularize::Bool = false,
-  selected::UnitRange{Int64} = 1:length(c),
+  selected::UnitRange{Int} = 1:length(c),
   σ::T = zero(T),
   kwargs...,
 ) where {T, S}
