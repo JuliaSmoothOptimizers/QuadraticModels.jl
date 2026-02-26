@@ -5,6 +5,7 @@ mutable struct QPData{
   S,
   M1 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   M2 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
+  I  <: AbstractVector{<:Integer},
 }
   c0::T         # constant term in objective
   c::S          # linear term
@@ -12,7 +13,7 @@ mutable struct QPData{
   H::M1
   A::M2
   regularize::Bool # Whether the objective function is regularized or not
-  selected::UnitRange{Int} # Variable indices to which the regularization is applied to
+  selected::I # Variable indices to which the regularization is applied to
   σ::T # Regularization parameter if regularize is true
 end
 
@@ -74,10 +75,10 @@ based on a `QPData` with dense matrices will convert the field `data` to a `QPDa
 Its in-place variant `SlackModel!` specific to QuadraticModels will only work with a `QuadraticModel` based on
 a `QPData` with SparseMatricesCOO.
 """
-mutable struct QuadraticModel{T, S, M1, M2} <: AbstractQuadraticModel{T, S}
+mutable struct QuadraticModel{T, S, M1, M2, I} <: AbstractQuadraticModel{T, S}
   meta::NLPModelMeta{T, S}
   counters::Counters
-  data::QPData{T, S, M1, M2}
+  data::QPData{T, S, M1, M2, I}
 end
 
 function Base.convert(
