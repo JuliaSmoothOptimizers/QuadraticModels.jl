@@ -52,6 +52,8 @@ With the first constructor, if `sortcols = true`, then `Hcols` and `Acols` are s
 (`Hrows`, `Hvals` and `Arows`, `Avals` are then sorted accordingly).
 
 If `regularize = true` or `σ != 0`, then a quadratic regularization term `\\tfrac{σ}{2} \\sum_{i ∈ selected} x_i^2` is added to the objective function.
+If `regularize = true`, extra space for diagonal entries of the Hessian matrix will be allocated, regardless of the value of `σ`.
+This is useful if one wants to initialize the model without regularization but plans on adding it later.
 
 You can also use [`QPSReader.jl`](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) to
 create a Quadratic model from a QPS file:
