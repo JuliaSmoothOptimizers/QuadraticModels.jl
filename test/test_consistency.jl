@@ -32,23 +32,27 @@ end
 
 for problem in qp_problems_Matrix
   @info "Checking consistency of problem $problem"
-  nlp_ad = eval(Symbol(problem * "_autodiff"))()
-  nlp_qps = eval(Symbol(problem * "_QPSData"))()
-  nlp_qm_dense = eval(Symbol(problem * "_QP_dense"))()
-  nlp_qm_sparse = eval(Symbol(problem * "_QP_sparse"))()
-  nlp_qm_symmetric = eval(Symbol(problem * "_QP_symmetric"))()
-  nlps = [nlp_ad, nlp_qm_dense, nlp_qm_sparse, nlp_qm_symmetric, nlp_qps]
-  consistent_nlps(nlps, linear_api = true, reimplemented = ["jtprod"])
+  for σ ∈ [0.0, 3.0]
+    nlp_ad = eval(Symbol(problem * "_autodiff"))(σ = σ)
+    nlp_qps = eval(Symbol(problem * "_QPSData"))(σ = σ)
+    nlp_qm_dense = eval(Symbol(problem * "_QP_dense"))(σ = σ)
+    nlp_qm_sparse = eval(Symbol(problem * "_QP_sparse"))(σ = σ)
+    nlp_qm_symmetric = eval(Symbol(problem * "_QP_symmetric"))(σ = σ)
+    nlps = [nlp_ad, nlp_qm_dense, nlp_qm_sparse, nlp_qm_symmetric, nlp_qps]
+    consistent_nlps(nlps, linear_api = true, reimplemented = ["jtprod"])
+  end
   @info "  Consistency checks ✓"
 end
 
 for problem in qp_problems_COO
   @info "Checking consistency of problem $problem"
-  nlp_ad = eval(Symbol(problem * "_autodiff"))()
-  nlp_qm = eval(Symbol(problem * "_QP"))()
-  nlp_qps = eval(Symbol(problem * "_QPSData"))()
-  nlps = [nlp_ad, nlp_qm, nlp_qps]
-  consistent_nlps(nlps, linear_api = true, reimplemented = ["jtprod"])
+  for σ ∈ [0.0, 3.0]
+    nlp_ad = eval(Symbol(problem * "_autodiff"))(σ = σ)
+    nlp_qm = eval(Symbol(problem * "_QP"))(σ = σ)
+    nlp_qps = eval(Symbol(problem * "_QPSData"))(σ = σ)
+    nlps = [nlp_ad, nlp_qm, nlp_qps]
+    consistent_nlps(nlps, linear_api = true, reimplemented = ["jtprod"])
+  end
   @info "  Consistency checks ✓"
 end
 
@@ -81,6 +85,31 @@ for problem in NLPModelsTest.nlp_problems
     end
     nlp_qm = QuadraticModel(nlp, x)
     nlps = [nlp_ad, nlp_qm]
+    consistent_nlps(nlps, linear_api = true, reimplemented = ["jtprod"])
+
+    nlp_ad_reg = if nlp.meta.ncon > 0
+      cx, Ax = cons(nlp, x), jac(nlp, x)
+      ADNLPModel(
+        s -> fx + dot(gx, s) + dot(s, Hx * s) / 2 + 3*dot(s, s)/2,
+        zeros(nlp.meta.nvar),
+        nlp.meta.lvar - x,
+        nlp.meta.uvar - x,
+        Ax,
+        nlp.meta.lcon - cx,
+        nlp.meta.ucon - cx,
+        detector = SparseConnectivityTracer.TracerLocalSparsityDetector(),
+      )
+    else
+      ADNLPModel(
+        s -> fx + dot(gx, s) + dot(s, Hx * s) / 2 + 3*dot(s, s)/2,
+        zeros(nlp.meta.nvar),
+        nlp.meta.lvar - x,
+        nlp.meta.uvar - x,
+        detector = SparseConnectivityTracer.TracerLocalSparsityDetector(),
+      )
+    end
+    nlp_rqm = QuadraticModel(nlp, x, regularize = true, σ = 3.0)
+    nlps = [nlp_ad_reg, nlp_rqm]
     consistent_nlps(nlps, linear_api = true, reimplemented = ["jtprod"])
   end
 end
