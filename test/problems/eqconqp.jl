@@ -19,9 +19,17 @@ function eqconqp_QP_dense(; σ = 0.0)
   lcon = [1.0]
   ucon = [1.0]
 
-  σ == 0.0 &&
-    return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
-  return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP", regularize = true, σ = σ)
+  σ == 0.0 && return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
+  return QuadraticModel(
+    c,
+    H,
+    A = A,
+    lcon = lcon,
+    ucon = ucon,
+    name = "eqconqp_QP",
+    regularize = true,
+    σ = σ,
+  )
 end
 
 function eqconqp_QP_sparse(; σ = 0.0)
@@ -33,9 +41,17 @@ function eqconqp_QP_sparse(; σ = 0.0)
   lcon = [1.0]
   ucon = [1.0]
 
-  σ == 0.0 && 
-    return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
-  return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP", regularize = true, σ = σ)
+  σ == 0.0 && return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
+  return QuadraticModel(
+    c,
+    H,
+    A = A,
+    lcon = lcon,
+    ucon = ucon,
+    name = "eqconqp_QP",
+    regularize = true,
+    σ = σ,
+  )
 end
 
 function eqconqp_QP_symmetric(; σ = 0.0)
@@ -48,9 +64,17 @@ function eqconqp_QP_symmetric(; σ = 0.0)
   lcon = [1.0]
   ucon = [1.0]
 
-  σ == 0.0 &&
-    return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
-  return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP", regularize = true, σ = σ)
+  σ == 0.0 && return QuadraticModel(c, H, A = A, lcon = lcon, ucon = ucon, name = "eqconqp_QP")
+  return QuadraticModel(
+    c,
+    H,
+    A = A,
+    lcon = lcon,
+    ucon = ucon,
+    name = "eqconqp_QP",
+    regularize = true,
+    σ = σ,
+  )
 end
 
 function eqconqp_QPSData(; σ = 0.0)
@@ -71,7 +95,6 @@ function eqconqp_QPSData(; σ = 0.0)
   qps.lvar, qps.uvar = lvar, uvar
   qps.nvar = length(c)
 
-  σ == 0.0 &&
-    return QuadraticModel(qps)
+  σ == 0.0 && return QuadraticModel(qps)
   return QuadraticModel(qps, regularize = true, σ = σ)
 end
