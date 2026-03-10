@@ -5,7 +5,7 @@ mutable struct QPData{
   S,
   M1 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   M2 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
-  I  <: AbstractVector{<:Integer},
+  I <: AbstractVector{<:Integer},
 }
   c0::T         # constant term in objective
   c::S          # linear term
@@ -196,11 +196,15 @@ function QuadraticModel(
     nnzj = 0
     data = QPData(c0, c, H, A, regularize = regularize, selected = selected, σ = σ)
   elseif typeof(H) <: Symmetric
-    nnzh = typeof(H.data) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H) + (regularize ? length(selected) : 0)
+    nnzh =
+      typeof(H.data) <: DenseMatrix ? nvar * (nvar + 1) / 2 :
+      nnz(H) + (regularize ? length(selected) : 0)
     nnzj = nnz(A)
     data = QPData(c0, c, H.data, A, regularize = regularize, selected = selected, σ = σ)
   else
-    nnzh = typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 : nnz(H) + (regularize ? length(selected) : 0)
+    nnzh =
+      typeof(H) <: DenseMatrix ? nvar * (nvar + 1) / 2 :
+      nnz(H) + (regularize ? length(selected) : 0)
     nnzj = nnz(A)
     data = QPData(c0, c, H, A, regularize = regularize, selected = selected, σ = σ)
   end
@@ -410,7 +414,7 @@ function NLPModels.hess_coord!(
     is_selected = j in qp.data.selected
     for i = j:(qp.meta.nvar)
       vals[count] = obj_weight * qp.data.H[i, j]
-      if qp.data.regularize && is_selected && i == j 
+      if qp.data.regularize && is_selected && i == j
         vals[count] += obj_weight * qp.data.σ
       end
       count += 1
@@ -533,8 +537,7 @@ function NLPModels.hprod!(
 )
   NLPModels.increment!(qp, :neval_hprod)
   mul!(Hv, Symmetric(qp.data.H, :L), v)
-  qp.data.regularize &&
-    (@views Hv[qp.data.selected] .+= qp.data.σ .* v[qp.data.selected])
+  qp.data.regularize && (@views Hv[qp.data.selected] .+= qp.data.σ .* v[qp.data.selected])
   if obj_weight != 1
     Hv .*= obj_weight
   end
