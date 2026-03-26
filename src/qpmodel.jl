@@ -19,6 +19,8 @@ end
 
 @inline QPData(c0, c, H, A; regularize = false, selected = 1:length(c), σ = zero(c0)) =
   QPData(c0, c, similar(c), H, A, regularize, selected, σ)
+@inline QPData(c0, c, v, H, A; regularize = false, selected = 1:length(c), σ = zero(c0)) =
+  QPData(c0, c, v, H, A, regularize, selected, σ)
 isdense(data::QPData{T, S, M1, M2}) where {T, S, M1, M2} = M1 <: DenseMatrix || M2 <: DenseMatrix
 
 function Base.convert(
